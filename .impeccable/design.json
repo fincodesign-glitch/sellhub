@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-23T00:00:00.000Z",
+  "title": "Design System: SellHub Home — Export Declaration Surface",
+  "extensions": {
+    "colorMeta": {
+      "paper": { "role": "neutral", "displayName": "Declaration Paper", "canonical": "#f7f7f6", "tonalRamp": ["#141414", "#2b2b2b", "#4a4a4a", "#6d6d6d", "#949494", "#bcbcbc", "#dedede", "#f7f7f6"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#1c1b29", "tonalRamp": ["#0d0c14", "#1c1b29", "#332f47", "#4c4768", "#68628c", "#8b86ab", "#b6b2cc", "#e3e1ee"] },
+      "brand": { "role": "primary", "displayName": "Signal Blue", "canonical": "#4fa8dd", "tonalRamp": ["#0d3350", "#134a72", "#1c6494", "#2f7fb3", "#4fa8dd", "#7cc0e6", "#ade0f5", "#eef7fd"] },
+      "brand-dark": { "role": "primary", "displayName": "Signal Blue Dark", "canonical": "#2f7fb3", "tonalRamp": ["#0a2438", "#123a56", "#1c5378", "#2f7fb3", "#4fa8dd", "#7cc0e6", "#ade0f5", "#eef7fd"] },
+      "accent-coral": { "role": "secondary", "displayName": "Stamp Coral", "canonical": "#ff7a45", "tonalRamp": ["#5c2200", "#8a3600", "#c14e0f", "#e6631f", "#ff7a45", "#ff9d72", "#ffc2a3", "#ffe6d8"] },
+      "form-navy": { "role": "neutral", "displayName": "Form Navy", "canonical": "#060f1c", "tonalRamp": ["#020509", "#060f1c", "#0b1a2c", "#132840", "#1f3a5a", "#33547a", "#5578a0", "#8aa7c6"] },
+      "white": { "role": "neutral", "displayName": "White", "canonical": "#ffffff", "tonalRamp": ["#dedede", "#e6e6e6", "#eeeeee", "#f2f2f2", "#f7f7f7", "#fafafa", "#fdfdfd", "#ffffff"] }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Declaration Headline", "purpose": "Masthead H1 only, one instance per page." },
+      "label": { "displayName": "Field Label / Reference Mono", "purpose": "Field-box labels, serial numbers, market codes, candidate IDs, footer reference, CTA text." },
+      "body": { "displayName": "Declaration Body", "purpose": "All Korean sentence-level copy inside field panes and lists." }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "FieldBox",
+      "kind": "custom",
+      "refersTo": "field-box-label",
+      "description": "Numbered field: label strip over a padded content pane. The page's repeating structural unit.",
+      "html": "<div class=\"ds-fieldbox\"><div class=\"ds-fieldbox-label\">01. Product</div><div class=\"ds-fieldbox-body\">Field content goes here.</div></div>",
+      "css": ".ds-fieldbox { border: 1px solid rgba(28,27,41,0.7); } .ds-fieldbox-label { border-bottom: 1px solid rgba(28,27,41,0.7); background: rgba(28,27,41,0.03); padding: 6px 16px; font-family: 'SUSE Mono', 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: rgba(28,27,41,0.55); } .ds-fieldbox-body { padding: 16px 20px; font-family: 'Pretendard Variable', 'Malgun Gothic', sans-serif; font-size: 14px; line-height: 1.75; color: rgba(28,27,41,0.8); }"
+    },
+    {
+      "name": "Candidate Slot — Default",
+      "kind": "custom",
+      "refersTo": "candidate-slot-default",
+      "description": "One of nine identical unmatched candidate cells in the repeating candidate row.",
+      "html": "<div class=\"ds-slot\"><div class=\"ds-slot-no\">No. 01</div><div class=\"ds-slot-mark\">—</div><div class=\"ds-slot-tag\">ID:</div></div>",
+      "css": ".ds-slot { border: 1px solid rgba(28,27,41,0.25); color: rgba(28,27,41,0.4); text-align: center; padding: 12px 8px; font-family: 'SUSE Mono', monospace; } .ds-slot-no { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; } .ds-slot-mark { margin-top: 8px; font-size: 15px; } .ds-slot-tag { margin-top: 4px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em; }"
+    },
+    {
+      "name": "Candidate Slot — Matched",
+      "kind": "custom",
+      "refersTo": "candidate-slot-matched",
+      "description": "The single highlighted candidate cell representing the AI-matched buyer, styled by color swap only.",
+      "html": "<div class=\"ds-slot ds-slot--matched\"><div class=\"ds-slot-no\">No. 06</div><div class=\"ds-slot-mark\">✓</div><div class=\"ds-slot-tag\">Matched</div></div>",
+      "css": ".ds-slot--matched { border: 1px solid #4fa8dd; background: #4fa8dd; color: #ffffff; text-align: center; padding: 12px 8px; font-family: 'SUSE Mono', monospace; transition: background-color 0.2s, color 0.2s; } .ds-slot--matched .ds-slot-no, .ds-slot--matched .ds-slot-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; } .ds-slot--matched .ds-slot-mark { margin-top: 8px; font-size: 15px; }"
+    },
+    {
+      "name": "Submit Button",
+      "kind": "button",
+      "refersTo": "submit-button",
+      "description": "The page's single CTA, styled as the declaration form's approval/submit action, on the navy 'Final authorisation' field.",
+      "html": "<button class=\"ds-btn-submit\">Submit — 무료로 시작하기</button>",
+      "css": ".ds-btn-submit { background: #ffffff; color: #060f1c; border: 1px solid #ffffff; padding: 12px 32px; font-family: 'SUSE Mono', monospace; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; border-radius: 0; transition: background-color 0.2s; } .ds-btn-submit:hover, .ds-btn-submit:focus-visible { background: #eef7fd; } .ds-btn-submit:focus-visible { outline: 2px solid #2f7fb3; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Stamped Declaration",
+    "overview": "The homepage abandons the hero/feature-grid/CTA scroll and instead renders as a single completed, approved Korean customs export declaration (수출신고필증): an off-white paper field (#f7f7f6), a full-bleed black-ink rule around every module, numbered field boxes, dashed cut-lines between declared items, and a rotated red-tinted 'approved' stamp bleeding over the top-right corner. SellHub's existing brand blue is repurposed as the 'matched/approved' status color; the existing coral accent is promoted to stamp-ink duty. Nothing here is a generic marketing layout with form styling applied on top — the form's own numbering and field grammar is the page structure, which is why the numbered boxes are an earned exception to the platform's usual 'no bare section numbers' default: the sequence is load-bearing, copied from a real declaration form's field order, not decorative.",
+    "keyCharacteristics": [
+      "Off-white paper ground, full-width black-ink rules, zero corner radius, zero shadow.",
+      "Every content module is a numbered FieldBox: a thin label strip (NN. Label) over a padded content pane.",
+      "One repeating grid of identical candidate slots with exactly one slot recolored solid brand-blue.",
+      "SUSE Mono in a single weight (700, uppercase, tight tracking) carries every non-body string.",
+      "The final CTA is field 18, 'Final authorisation,' on a deep navy ground with a white rectangular Submit button."
+    ],
+    "rules": [
+      { "name": "The Ink-Opacity Rule", "body": "There is one ink color (#1c1b29). Every visual weight of border, divider, and secondary text is an opacity step of that ink, never a second gray hex. A new gray value is a violation, not a variant.", "section": "colors" },
+      { "name": "The One Highlight Rule", "body": "Signal Blue fills exactly one element on the page at a time (the matched candidate slot). Everything else that isn't ink-on-paper or the stamp's coral is either full ink or an ink opacity step.", "section": "colors" },
+      { "name": "The One-Weight Mono Rule", "body": "SUSE Mono ships at a single weight (700) and a single case (uppercase) everywhere it appears. There is no regular-weight or mixed-case use of the display font on this surface.", "section": "typography" },
+      { "name": "The No-Shadow Rule", "body": "This surface uses zero box-shadow. Any future addition to this page that reaches for a shadow for elevation has left the paper-and-ink world; use a border-weight or opacity step instead.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use SUSE Mono at weight 700, uppercase, for every field label, serial number, market code, and CTA string — never for a full paragraph of Korean body copy.",
+      "Do keep the single ink color (#1c1b29) and vary only its opacity for every border/divider/secondary-text weight; don't introduce a second gray.",
+      "Do number a field only when the number is a real declaration-form field number carried by the page's own document metaphor; the exception exists because the sequence is load-bearing here, not by default for future pages.",
+      "Do tell a 'one match among many' story through a single solid-color fill inside an otherwise identical repeating grid row, not a card or badge."
+    ],
+    "donts": [
+      "Don't add a box-shadow anywhere on this surface — depth is ink-weight and opacity, not light.",
+      "Don't add corner radius to any box, chip, or button; the form's rectilinear grid is the whole shape language.",
+      "Don't treat the numbered-field device or the SUSE Mono declaration voice as a global system rule — both are scoped to this one surface's document metaphor, not a precedent for other SellHub or Searching Hub pages.",
+      "Don't carry the check/cross Unicode glyphs used here for the candidate-match mark and the before/after list forward as this project's icon system; they are a defect of this build, not a documented component."
+    ]
+  }
+}

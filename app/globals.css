@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #1c1b29;
+  --brand: #4fa8dd;
+  --brand-dark: #2f7fb3;
+  --brand-bg: #eef7fd;
+  --brand-line: #cfe8f7;
+  --accent: #ff7a45;
+  --ink2: #5c5a72;
+  --muted: #8b899e;
+  --surface2: #f7f6fb;
+  --line: #e7e4f4;
+
+  /* 홈페이지 전용: 신호/소음 모티프에 쓰이는 딥 네이비 톤 */
+  --navy: #060f1c;
+  --navy2: #0b1a2c;
+  --navy-line: rgba(255, 255, 255, 0.1);
+  --noise: #2c3b52;
+
+  /* IntentMate 전용 팔레트: 리브랜딩 이전 원래 톤이었던 보라색 계열 */
+  --intent-violet: #5b3df5;
+  --intent-violet-dark: #4023d6;
+  --intent-violet-bg: #f2effe;
+  --intent-violet-line: #ddd3fb;
+  --intent-ink: #150f2e;
+  --intent-coral: #ff7a45;
+}
+
+/* data-brand="intent" 안에서는 공용 컴포넌트(SiteHeader/Logo/버튼 등)가 쓰는
+   --brand 계열 변수를 보라색으로 바꿔치기해, 컴포넌트를 건드리지 않고도
+   IntentMate 페이지 전체가 자기 색을 갖도록 한다. */
+[data-brand="intent"] {
+  --brand: var(--intent-violet);
+  --brand-dark: var(--intent-violet-dark);
+  --brand-bg: var(--intent-violet-bg);
+  --brand-line: var(--intent-violet-line);
+  --navy: var(--intent-ink);
+  --accent: var(--intent-coral);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-bg: var(--brand-bg);
+  --color-brand-line: var(--brand-line);
+  --color-accent: var(--accent);
+  --color-ink2: var(--ink2);
+  --color-muted: var(--muted);
+  --color-surface2: var(--surface2);
+  --color-line: var(--line);
+  --color-navy: var(--navy);
+  --color-navy2: var(--navy2);
+  --font-sans: var(--font-pretendard);
+  --font-mono: var(--font-plex-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), "Malgun Gothic", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* 한글은 음절 단위로 어디서든 줄바꿈이 가능해, 컨테이너가 살짝만 좁아도 마지막 한 글자만
+     다음 줄에 혼자 남는 경우가 생긴다. 띄어쓰기(어절) 단위로만 줄바꿈되도록 강제한다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* 소음(불규칙한 선) 속에서 하나의 신호(부드러운 곡선 + 점)로 수렴하는, 홈페이지의 시그니처 모션 */
+@keyframes draw-signal {
+  from {
+    stroke-dashoffset: var(--signal-length, 1600);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes signal-pulse {
+  0%,
+  100% {
+    r: 5;
+    opacity: 1;
+  }
+  50% {
+    r: 7;
+    opacity: 0.75;
+  }
+}
+
+.signal-path {
+  stroke-dasharray: var(--signal-length, 1600);
+  stroke-dashoffset: var(--signal-length, 1600);
+  animation: draw-signal 2.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+.signal-dot {
+  animation: signal-pulse 2.4s ease-in-out 2.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .signal-path,
+  .signal-dot {
+    animation: none !important;
+    opacity: 1 !important;
+    stroke-dashoffset: 0 !important;
+  }
+}
+
+/* IntentMate 페이지의 시장 티커에 쓰는 무한 가로 스크롤 */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 18s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}

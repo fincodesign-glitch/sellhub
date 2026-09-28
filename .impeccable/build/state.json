@@ -1,0 +1,123 @@
+{
+  "tool": "build-phase",
+  "version": 2,
+  "startedAt": "2026-09-23T07:16:10.804Z",
+  "comp": ".impeccable/mocks/comp-b.png",
+  "direction": "d8f2347f",
+  "breakpoint": "1296x768",
+  "artifact": null,
+  "phase": "plates",
+  "phases": {
+    "comps": {
+      "status": "closed",
+      "openedAt": "2026-09-23T07:16:10.804Z",
+      "closedAt": "2026-09-23T07:20:57.404Z",
+      "attempts": 3,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "3 comps, 1 approved",
+        "approved": ".impeccable/mocks/comp-b.png",
+        "at": "2026-09-23T07:20:57.404Z"
+      },
+      "forced": null
+    },
+    "spec": {
+      "status": "closed",
+      "openedAt": "2026-09-23T07:20:57.417Z",
+      "closedAt": "2026-09-23T07:25:43.301Z",
+      "attempts": 5,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "25 regions, 3 plates, 20 text regions measured",
+        "at": "2026-09-23T07:25:43.301Z"
+      },
+      "forced": null
+    },
+    "plates": {
+      "status": "open",
+      "openedAt": "2026-09-23T07:25:43.301Z",
+      "closedAt": null,
+      "attempts": 6,
+      "notes": [],
+      "gate": {
+        "ok": false,
+        "reasons": [
+          "plate assets/plates/seal-icon.png: structure 38% against the comp region seal-icon: the composition of the plate is not the region's (different subject, orientation, or crop); regenerate with comp-spec.mjs --crop seal-icon as the reference image",
+          "plate assets/plates/barcode-plate.png: structure 10% against the comp region barcode-plate: the composition of the plate is not the region's (different subject, orientation, or crop); regenerate with comp-spec.mjs --crop barcode-plate as the reference image",
+          "plate assets/plates/barcode-plate.png: scores 37% against the comp region barcode-plate (structure 10%, color 77%, detail 34%); regenerate with the crop as --ref and the comp-spec plate prompt",
+          "plate assets/plates/stamp.png: scores 30% against the comp region stamp (structure 45%, color 84%, detail 4%); regenerate with the crop as --ref and the comp-spec plate prompt"
+        ],
+        "summary": "3/3 plates",
+        "at": "2026-09-23T07:35:02.382Z"
+      },
+      "forced": null
+    },
+    "hero": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "sections": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "motion": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "responsive": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "review": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    }
+  },
+  "finish": null,
+  "plates": {
+    "seal-icon": {
+      "status": "ok",
+      "score": 0.4823,
+      "size": "1536x1024"
+    },
+    "barcode-plate": {
+      "status": "ok",
+      "score": 0.3687,
+      "size": "1536x1024"
+    },
+    "stamp": {
+      "status": "ok",
+      "score": 0.2999,
+      "size": "1536x1024"
+    }
+  }
+}

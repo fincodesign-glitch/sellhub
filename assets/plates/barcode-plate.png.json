@@ -1,0 +1,9 @@
+{
+  "prompt": "Use the provided crop as the approved visual reference and recreate it as a clean production asset at the target aspect ratio. Same drawing, same style. A black vertical-bar barcode graphic filling the frame. Preserve silhouette, composition, and crop framing exactly. No text, no numbers. Isolated on plain white background, edge to edge, no margin.\n",
+  "createdAt": "2026-09-23T07:32:02.291Z",
+  "tool": "impeccable generate-image",
+  "model": "gpt-image-2.5-flare",
+  "refs": [
+    ".impeccable/build/crops/barcode-plate.png"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "prompt": "Use the provided crop as the approved visual reference and recreate it as a clean production asset at the target aspect ratio. Same drawing, same style. A red circular official rubber-stamp ring fragment with small stars, worn distressed ink texture, bleeding off the frame edges. Preserve silhouette, composition, and crop framing exactly. No text, no letters. Transparent background, isolated cutout.\n",
+  "createdAt": "2026-09-23T07:32:19.882Z",
+  "tool": "impeccable generate-image",
+  "model": "gpt-image-2.5-flare",
+  "background": "transparent",
+  "outputFormat": "png",
+  "refs": [
+    ".impeccable/build/crops/stamp.png"
+  ]
+}
