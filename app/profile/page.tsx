@@ -254,7 +254,7 @@ export default function ProfilePage() {
       <header className="sticky top-0 z-30 border-b border-white/10 bg-black/70 backdrop-blur-xl">
         <input type="checkbox" id="mobile-nav-toggle" className="peer hidden" />
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Logo />
+          <Logo suffix=".ai" />
           <div className="flex items-center gap-4">
             <div className="hidden items-center gap-4 sm:flex">
               {TOOL_LINKS.map((item) => (
