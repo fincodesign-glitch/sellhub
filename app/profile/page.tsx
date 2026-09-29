@@ -4,12 +4,14 @@ import Link from "next/link";
 import NavLink, { splitNavItems, TOOL_LINKS } from "@/components/NavLink";
 import Logo from "@/components/Logo";
 import SignalWave from "@/components/SignalWave";
+import DarkSiteFooter from "@/components/DarkSiteFooter";
 import { IconImage, IconRadar, IconTrend, IconMatch, IconDocument, type IconProps } from "@/components/Icons";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import type { AnalysisResult, Buyer, Relevance, ReportMeta } from "@/lib/analysis-types";
 import { warmPdfFonts } from "@/lib/pdf-warmup";
+import styles from "@/components/DarkSite.module.css";
 
 // Kept local (not imported from lib/site-content) because that module also
 // exports server-only @vercel/blob calls that must not end up in the client bundle.
@@ -25,7 +27,10 @@ const DEFAULT_NAV: NavItem[] = [
 const PdfDownloadButton = dynamic(() => import("@/components/PdfDownloadButton"), {
   ssr: false,
   loading: () => (
-    <span className="inline-flex items-center gap-2 rounded-[10px] bg-brand px-5 py-2.5 text-[13.5px] font-bold text-white opacity-60">
+    <span
+      className="inline-flex items-center gap-2 rounded-[10px] px-5 py-2.5 text-[13.5px] font-bold text-white opacity-60"
+      style={{ background: "linear-gradient(180deg,#5b9cff,#2f6fe0)" }}
+    >
       PDF 준비 중...
     </span>
   ),
@@ -237,7 +242,7 @@ export default function ProfilePage() {
   const isBusy = status === "loading" || status === "streaming";
 
   return (
-    <div className="min-h-screen bg-surface2">
+    <div className={styles.wrap}>
       {/* Warm the browser's HTTP cache for the PDF fonts as soon as this page
           loads, so by the time the user clicks "PDF 다운로드" (after a multi-
           minute analysis), the ~1.7MB of CJK font data doesn't have to be
@@ -246,24 +251,24 @@ export default function ProfilePage() {
       <link rel="preload" as="fetch" crossOrigin="anonymous" href="/fonts/NotoSansKR-Bold.woff" />
       <link rel="preload" as="fetch" crossOrigin="anonymous" href="/fonts/NotoSansJP-Regular.woff" />
       <link rel="preload" as="fetch" crossOrigin="anonymous" href="/fonts/NotoSansJP-Bold.woff" />
-      <header className="sticky top-0 z-30 border-b border-line/70 bg-white/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-black/70 backdrop-blur-xl">
         <input type="checkbox" id="mobile-nav-toggle" className="peer hidden" />
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Logo />
           <div className="flex items-center gap-4">
             <div className="hidden items-center gap-4 sm:flex">
               {TOOL_LINKS.map((item) => (
-                <NavLink key={item.label} href={item.href} className="text-[14px] font-semibold text-foreground hover:text-brand-dark">
+                <NavLink key={item.label} href={item.href} className="text-[14px] font-semibold text-white hover:text-[#5b9cff]">
                   {item.label}
                 </NavLink>
               ))}
               {navBeforeLogin.map((item) => (
-                <NavLink key={item.label} href={item.href} className="text-[14px] font-semibold text-ink2 hover:text-foreground">
+                <NavLink key={item.label} href={item.href} className="text-[14px] font-semibold text-[#b4b4b4] hover:text-white">
                   {item.label}
                 </NavLink>
               ))}
             </div>
-            <span className="rounded-full bg-brand-bg px-3 py-1 text-[12px] font-bold text-brand-dark">
+            <span className="rounded-full bg-[#5b9cff]/15 px-3 py-1 text-[12px] font-bold text-[#5b9cff]">
               Free 플랜
             </span>
             {user ? (
@@ -272,23 +277,23 @@ export default function ProfilePage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full" />
                 ) : (
-                  <div className="h-8 w-8 rounded-full bg-brand-bg" />
+                  <div className="h-8 w-8 rounded-full bg-[#5b9cff]/15" />
                 )}
                 <button
                   onClick={() => signOutUser()}
-                  className="hidden text-[13.5px] font-semibold text-muted hover:text-foreground sm:inline"
+                  className="hidden text-[13.5px] font-semibold text-[#9a9a9a] hover:text-white sm:inline"
                 >
                   로그아웃
                 </button>
               </>
             ) : (
-              <Link href="/login" className="hidden text-[13.5px] font-semibold text-muted hover:text-foreground sm:inline">
+              <Link href="/login" className="hidden text-[13.5px] font-semibold text-[#9a9a9a] hover:text-white sm:inline">
                 로그인 (선택)
               </Link>
             )}
             <div className="hidden items-center gap-4 sm:flex">
               {navAfterLogin.map((item) => (
-                <NavLink key={item.label} href={item.href} className="text-[14px] font-semibold text-ink2 hover:text-foreground">
+                <NavLink key={item.label} href={item.href} className="text-[14px] font-semibold text-[#b4b4b4] hover:text-white">
                   {item.label}
                 </NavLink>
               ))}
@@ -296,7 +301,7 @@ export default function ProfilePage() {
             <label
               htmlFor="mobile-nav-toggle"
               aria-label="메뉴 열기"
-              className="grid h-9 w-9 cursor-pointer place-items-center rounded-[8px] text-ink2 hover:bg-surface2 sm:hidden"
+              className="grid h-9 w-9 cursor-pointer place-items-center rounded-[8px] text-[#b4b4b4] hover:bg-white/[0.08] sm:hidden"
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M4 6h16M4 12h16M4 18h16" />
@@ -304,31 +309,31 @@ export default function ProfilePage() {
             </label>
           </div>
         </div>
-        <div className="hidden flex-col gap-1 border-t border-line bg-white px-6 py-4 peer-checked:flex sm:hidden">
+        <div className="hidden flex-col gap-1 border-t border-white/10 bg-black px-6 py-4 peer-checked:flex sm:hidden">
           {TOOL_LINKS.map((item) => (
-            <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-bold text-foreground hover:bg-surface2">
+            <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-bold text-white hover:bg-white/[0.08]">
               {item.label}
             </NavLink>
           ))}
           {navBeforeLogin.map((item) => (
-            <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-ink2 hover:bg-surface2">
+            <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-[#b4b4b4] hover:bg-white/[0.08]">
               {item.label}
             </NavLink>
           ))}
           {navAfterLogin.map((item) => (
-            <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-ink2 hover:bg-surface2">
+            <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-[#b4b4b4] hover:bg-white/[0.08]">
               {item.label}
             </NavLink>
           ))}
           {user ? (
             <button
               onClick={() => signOutUser()}
-              className="rounded-[8px] px-2 py-2.5 text-left text-[15px] font-semibold text-muted hover:bg-surface2"
+              className="rounded-[8px] px-2 py-2.5 text-left text-[15px] font-semibold text-[#9a9a9a] hover:bg-white/[0.08]"
             >
               로그아웃
             </button>
           ) : (
-            <Link href="/login" className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-muted hover:bg-surface2">
+            <Link href="/login" className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-[#9a9a9a] hover:bg-white/[0.08]">
               로그인 (선택)
             </Link>
           )}
@@ -336,25 +341,28 @@ export default function ProfilePage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-12">
-        <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-navy px-3.5 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-brand">
+        <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3.5 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-[#5b9cff]">
           SellHub Tool
         </span>
-        <h1 className="mb-3 text-balance text-[clamp(26px,3.6vw,38px)] font-black leading-[1.15] tracking-[-0.01em]">바이어 찾기 & 제안 메일 만들기</h1>
-        <p className="mb-8 max-w-2xl text-[15px] leading-[1.7] text-ink2">
+        <h1 className="mb-3 text-balance text-[clamp(26px,3.6vw,38px)] font-black leading-[1.15] tracking-[-0.01em] text-white">바이어 찾기 & 제안 메일 만들기</h1>
+        <p className="mb-8 max-w-2xl text-[15px] leading-[1.7] text-[#b4b4b4]">
           텍스트, 제품 페이지 URL, 상세페이지 이미지 중 원하는 방식으로 제품을 알려주시면 AI가 해외 시장에서
           관심 가질 만한 바이어를 찾고, 그 바이어 회사 한 곳만을 위한 영어 제안 메일까지 만들어드립니다.
         </p>
 
         <div className="mb-5 -mx-6 overflow-x-auto px-6 sm:mx-0 sm:overflow-visible sm:px-0">
-          <div className="inline-flex shrink-0 rounded-full border border-line bg-white p-1.5 shadow-sm">
+          <div className="inline-flex shrink-0 rounded-full border border-white/10 bg-white/[0.04] p-1.5">
           {MODE_TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setMode(tab.key)}
-              className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-[13.5px] font-semibold transition ${
-                mode === tab.key ? "bg-brand text-white shadow-[0_2px_10px_rgba(79,168,221,0.35)]" : "text-ink2 hover:bg-surface2"
-              }`}
+              className="flex items-center gap-1.5 rounded-full px-4 py-2 text-[13.5px] font-semibold transition text-[#b4b4b4] hover:bg-white/[0.08]"
+              style={
+                mode === tab.key
+                  ? { background: "linear-gradient(180deg,#5b9cff,#2f6fe0)", color: "#fff", boxShadow: "0 2px 10px rgba(91,156,255,0.35)" }
+                  : undefined
+              }
             >
               <span aria-hidden>{tab.emoji}</span>
               {tab.label}
@@ -365,30 +373,31 @@ export default function ProfilePage() {
 
         <form
           onSubmit={handleSubmit}
-          className="mb-10 grid gap-5 rounded-[28px] border border-line bg-white p-8 shadow-[0_4px_28px_rgba(6,15,28,0.06)] sm:grid-cols-2"
+          className="mb-10 grid gap-5 rounded-[28px] border border-white/10 p-8 sm:grid-cols-2"
+          style={{ background: "linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0) 60%)" }}
         >
           {mode === "text" && (
             <>
-              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-ink2">
+              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-[#b4b4b4]">
                 제품 / 브랜드명
                 <input
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
                   placeholder="예: 속눈썹 메이커업"
-                  className="rounded-[10px] border border-line px-3.5 py-2.5 text-[14.5px] text-foreground outline-none focus:border-brand"
+                  className="rounded-[10px] border border-white/12 bg-white/[0.03] px-3.5 py-2.5 text-[14.5px] text-white outline-none focus:border-[#5b9cff] placeholder:text-[#6b6b6b]"
                 />
               </label>
-              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-ink2">
+              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-[#b4b4b4]">
                 목표 시장
                 <MarketSelect market={market} setMarket={setMarket} />
               </label>
-              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-ink2 sm:col-span-2">
+              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-[#b4b4b4] sm:col-span-2">
                 핵심 키워드 (쉼표로 구분)
                 <input
                   value={keywords}
                   onChange={(e) => setKeywords(e.target.value)}
                   placeholder="예: 속눈썹, 미용기기, K-뷰티"
-                  className="rounded-[10px] border border-line px-3.5 py-2.5 text-[14.5px] text-foreground outline-none focus:border-brand"
+                  className="rounded-[10px] border border-white/12 bg-white/[0.03] px-3.5 py-2.5 text-[14.5px] text-white outline-none focus:border-[#5b9cff] placeholder:text-[#6b6b6b]"
                 />
               </label>
             </>
@@ -396,29 +405,29 @@ export default function ProfilePage() {
 
           {mode === "url" && (
             <>
-              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-ink2 sm:col-span-2">
+              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-[#b4b4b4] sm:col-span-2">
                 제품 페이지 URL
                 <input
                   type="url"
                   value={productUrl}
                   onChange={(e) => setProductUrl(e.target.value)}
                   placeholder="https://example.com/products/..."
-                  className="rounded-[10px] border border-line px-3.5 py-2.5 text-[14.5px] text-foreground outline-none focus:border-brand"
+                  className="rounded-[10px] border border-white/12 bg-white/[0.03] px-3.5 py-2.5 text-[14.5px] text-white outline-none focus:border-[#5b9cff] placeholder:text-[#6b6b6b]"
                 />
-                <span className="text-[12px] font-normal text-muted">
+                <span className="text-[12px] font-normal text-[#9a9a9a]">
                   AI가 이 URL을 직접 방문해 브랜드·성분·효능·가격 정보를 읽어옵니다.
                 </span>
               </label>
-              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-ink2">
+              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-[#b4b4b4]">
                 제품/브랜드명 (선택)
                 <input
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
                   placeholder="참고용, 비워도 됩니다"
-                  className="rounded-[10px] border border-line px-3.5 py-2.5 text-[14.5px] text-foreground outline-none focus:border-brand"
+                  className="rounded-[10px] border border-white/12 bg-white/[0.03] px-3.5 py-2.5 text-[14.5px] text-white outline-none focus:border-[#5b9cff] placeholder:text-[#6b6b6b]"
                 />
               </label>
-              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-ink2">
+              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-[#b4b4b4]">
                 목표 시장
                 <MarketSelect market={market} setMarket={setMarket} />
               </label>
@@ -428,12 +437,12 @@ export default function ProfilePage() {
           {mode === "image" && (
             <>
               <div className="sm:col-span-2">
-                <span className="mb-1.5 block text-[13.5px] font-semibold text-ink2">
+                <span className="mb-1.5 block text-[13.5px] font-semibold text-[#b4b4b4]">
                   상세페이지 이미지
                 </span>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[12px] border-2 border-dashed border-line px-6 py-8 text-center hover:border-brand"
+                  className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[12px] border-2 border-dashed border-white/15 px-6 py-8 text-center hover:border-[#5b9cff]"
                 >
                   {imagePreview ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -445,10 +454,10 @@ export default function ProfilePage() {
                   ) : (
                     <>
                       <span className="text-[28px]">🖼️</span>
-                      <span className="text-[13.5px] font-semibold text-ink2">
+                      <span className="text-[13.5px] font-semibold text-[#b4b4b4]">
                         클릭해서 상세페이지 이미지 업로드
                       </span>
-                      <span className="text-[12px] text-muted">JPEG/PNG/GIF/WEBP, 최대 5MB</span>
+                      <span className="text-[12px] text-[#9a9a9a]">JPEG/PNG/GIF/WEBP, 최대 5MB</span>
                     </>
                   )}
                 </div>
@@ -459,18 +468,18 @@ export default function ProfilePage() {
                   onChange={handleFileChange}
                   className="hidden"
                 />
-                {imageError && <p className="mt-2 text-[12.5px] text-red-500">{imageError}</p>}
+                {imageError && <p className="mt-2 text-[12.5px] text-red-300">{imageError}</p>}
               </div>
-              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-ink2">
+              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-[#b4b4b4]">
                 제품/브랜드명 (선택)
                 <input
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
                   placeholder="참고용, 비워도 됩니다"
-                  className="rounded-[10px] border border-line px-3.5 py-2.5 text-[14.5px] text-foreground outline-none focus:border-brand"
+                  className="rounded-[10px] border border-white/12 bg-white/[0.03] px-3.5 py-2.5 text-[14.5px] text-white outline-none focus:border-[#5b9cff] placeholder:text-[#6b6b6b]"
                 />
               </label>
-              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-ink2">
+              <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold text-[#b4b4b4]">
                 목표 시장
                 <MarketSelect market={market} setMarket={setMarket} />
               </label>
@@ -481,7 +490,8 @@ export default function ProfilePage() {
             <button
               type="submit"
               disabled={isBusy || !isSubmittable()}
-              className="rounded-full bg-brand px-7 py-3.5 text-[14.5px] font-bold text-white shadow-[0_6px_20px_rgba(79,168,221,0.35)] transition-all hover:scale-[1.01] hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+              className="rounded-full px-7 py-3.5 text-[14.5px] font-bold text-white transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+              style={{ background: "linear-gradient(180deg,#5b9cff,#2f6fe0)", boxShadow: "0 6px 20px rgba(91,156,255,0.35)" }}
             >
               {isBusy ? "찾는 중..." : "바이어 & 제안 메일 만들기"}
             </button>
@@ -489,19 +499,22 @@ export default function ProfilePage() {
         </form>
 
         {errorMessage && (
-          <p className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13.5px] text-red-500">
+          <p className="mb-6 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-[13.5px] text-red-300">
             {errorMessage}
           </p>
         )}
 
         {isBusy && (
-          <div className="mb-8 overflow-hidden rounded-[20px] border border-brand-line bg-brand-bg px-6 py-5">
-            <div className="flex items-center gap-2.5 text-[13.5px] font-bold text-brand-dark">
+          <div
+            className="mb-8 overflow-hidden rounded-[20px] border border-white/12 px-6 py-5"
+            style={{ background: "rgba(91,156,255,0.08)" }}
+          >
+            <div className="flex items-center gap-2.5 text-[13.5px] font-bold text-[#5b9cff]">
               <Spinner />
               {progressLog.length > 0 ? progressLog[progressLog.length - 1] : "분석을 시작하는 중..."}
             </div>
             {progressLog.length > 1 && (
-              <ul className="mt-2.5 flex flex-col gap-1 text-[12.5px] text-ink2 opacity-70">
+              <ul className="mt-2.5 flex flex-col gap-1 text-[12.5px] text-[#b4b4b4] opacity-70">
                 {progressLog.slice(0, -1).map((label, i) => (
                   <li key={i}>{label}</li>
                 ))}
@@ -513,8 +526,11 @@ export default function ProfilePage() {
 
         {result && resultMeta && (
           <div className="flex flex-col gap-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-brand-line bg-brand-bg px-6 py-4">
-              <p className="text-[13.5px] font-bold text-brand-dark">
+            <div
+              className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-white/12 px-6 py-4"
+              style={{ background: "rgba(91,156,255,0.08)" }}
+            >
+              <p className="text-[13.5px] font-bold text-[#5b9cff]">
                 ✅ 바이어 후보와 제안 메일이 준비됐습니다
               </p>
               <PdfDownloadButton result={result} meta={resultMeta} />
@@ -522,7 +538,7 @@ export default function ProfilePage() {
 
             {result.productSummary && (
               <Section icon={IconImage} title="제품 분석">
-                <p className="text-[14px] leading-[1.7] text-ink2">{result.productSummary}</p>
+                <p className="text-[14px] leading-[1.7] text-[#b4b4b4]">{result.productSummary}</p>
               </Section>
             )}
 
@@ -530,8 +546,8 @@ export default function ProfilePage() {
               <Section icon={IconRadar} title="시장 인사이트 리포트">
                 <ul className="flex flex-col gap-2.5">
                   {result.marketInsight.map((point, i) => (
-                    <li key={i} className="flex gap-2.5 text-[14px] leading-[1.65] text-ink2">
-                      <span className="mt-0.5 shrink-0 text-brand">●</span>
+                    <li key={i} className="flex gap-2.5 text-[14px] leading-[1.65] text-[#b4b4b4]">
+                      <span className="mt-0.5 shrink-0 text-[#5b9cff]">●</span>
                       {point}
                     </li>
                   ))}
@@ -545,13 +561,13 @@ export default function ProfilePage() {
                   {result.trends.map((trend, i) => (
                     <div
                       key={i}
-                      className="flex flex-col gap-1.5 rounded-[12px] border border-line bg-surface2 px-4 py-3 sm:flex-row sm:items-start sm:gap-4"
+                      className="flex flex-col gap-1.5 rounded-[12px] border border-white/10 bg-white/[0.03] px-4 py-3 sm:flex-row sm:items-start sm:gap-4"
                     >
                       <div className="flex shrink-0 items-center gap-2 sm:w-40">
                         <RelevanceBadge relevance={trend.relevance} />
-                        <span className="text-[14px] font-bold">{trend.keyword}</span>
+                        <span className="text-[14px] font-bold text-white">{trend.keyword}</span>
                       </div>
-                      <p className="text-[13.5px] leading-[1.6] text-ink2">{trend.evidence}</p>
+                      <p className="text-[13.5px] leading-[1.6] text-[#b4b4b4]">{trend.evidence}</p>
                     </div>
                   ))}
                 </div>
@@ -575,7 +591,7 @@ export default function ProfilePage() {
 
             {result.recommendedActions.length > 0 && (
               <Section icon={IconDocument} title="추천 실행 계획">
-                <p className="mb-4 text-[13px] leading-[1.6] text-muted">
+                <p className="mb-4 text-[13px] leading-[1.6] text-[#9a9a9a]">
                   번호를 선택하면 SellHub가 해당 실행 항목을 대신 진행해드립니다. (Business 플랜 전용 기능)
                 </p>
                 <div className="flex flex-col gap-2.5">
@@ -591,13 +607,17 @@ export default function ProfilePage() {
                   ))}
                 </div>
                 {showUpgradePrompt && (
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-brand-line bg-brand-bg px-5 py-4">
-                    <p className="text-[13.5px] font-bold text-brand-dark">
+                  <div
+                    className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-white/12 px-5 py-4"
+                    style={{ background: "rgba(91,156,255,0.08)" }}
+                  >
+                    <p className="text-[13.5px] font-bold text-[#5b9cff]">
                       🔒 실행 항목 대행 서비스는 Business 플랜에서 이용할 수 있어요
                     </p>
                     <Link
                       href="/pricing#plan-business"
-                      className="rounded-full bg-brand px-4 py-2 text-[13px] font-bold text-white transition-all hover:scale-[1.03] hover:bg-brand-dark"
+                      className="rounded-full px-4 py-2 text-[13px] font-bold text-white transition-all hover:scale-[1.03]"
+                      style={{ background: "linear-gradient(180deg,#5b9cff,#2f6fe0)" }}
                     >
                       요금제 보기
                     </Link>
@@ -608,6 +628,8 @@ export default function ProfilePage() {
           </div>
         )}
       </main>
+
+      <DarkSiteFooter />
     </div>
   );
 }
@@ -622,9 +644,12 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[20px] border border-line bg-white p-7">
-      <h2 className="mb-5 flex items-center gap-2.5 text-[17px] font-extrabold tracking-tight">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-bg text-brand-dark">
+    <section
+      className="rounded-[20px] border border-white/10 p-7"
+      style={{ background: "linear-gradient(160deg, rgba(255,255,255,0.03), rgba(255,255,255,0) 60%)" }}
+    >
+      <h2 className="mb-5 flex items-center gap-2.5 text-[17px] font-extrabold tracking-tight text-white">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#5b9cff]/15 text-[#5b9cff]">
           <Icon className="h-4 w-4" />
         </span>
         {title}
@@ -635,13 +660,21 @@ function Section({
 }
 
 function RelevanceBadge({ relevance }: { relevance: Relevance }) {
-  const styles: Record<Relevance, string> = {
-    높음: "bg-brand text-white",
-    중간: "bg-brand-bg text-brand-dark",
-    낮음: "bg-surface2 text-muted border border-line",
+  const relevanceStyles: Record<Relevance, string> = {
+    높음: "text-white",
+    중간: "text-[#5b9cff]",
+    낮음: "text-[#9a9a9a] border border-white/15",
+  };
+  const relevanceBg: Record<Relevance, React.CSSProperties | undefined> = {
+    높음: { background: "linear-gradient(180deg,#5b9cff,#2f6fe0)" },
+    중간: { background: "rgba(91,156,255,0.15)" },
+    낮음: { background: "rgba(255,255,255,0.04)" },
   };
   return (
-    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ${styles[relevance]}`}>
+    <span
+      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ${relevanceStyles[relevance]}`}
+      style={relevanceBg[relevance]}
+    >
       {relevance}
     </span>
   );
@@ -670,12 +703,15 @@ function BuyerCard({
   }
 
   return (
-    <div className="flex flex-col rounded-[20px] border border-line bg-white p-5 shadow-[0_4px_16px_rgba(6,15,28,0.05)] transition-shadow hover:shadow-[0_8px_28px_rgba(6,15,28,0.09)]">
-      <h3 className="mb-1 text-[16px] font-extrabold leading-snug tracking-tight">
+    <div
+      className="flex flex-col rounded-[20px] border border-white/10 p-5 transition-colors hover:border-white/20"
+      style={{ background: "linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0) 60%)" }}
+    >
+      <h3 className="mb-1 text-[16px] font-extrabold leading-snug tracking-tight text-white">
         {buyer.nameLocal}
-        {buyer.nameEn && <span className="font-semibold text-ink2"> ({buyer.nameEn})</span>}
+        {buyer.nameEn && <span className="font-semibold text-[#b4b4b4]"> ({buyer.nameEn})</span>}
       </h3>
-      <p className="mb-3 text-[12.5px] font-semibold text-muted">
+      <p className="mb-3 text-[12.5px] font-semibold text-[#9a9a9a]">
         {buyer.country} · {buyer.buyerType}
       </p>
 
@@ -683,31 +719,34 @@ function BuyerCard({
         {buyer.reasons.slice(0, 2).map((reason, i) => (
           <p
             key={i}
-            className="rounded-[10px] bg-surface2 px-3 py-2.5 text-[12.5px] leading-[1.55] text-ink2"
+            className="rounded-[10px] bg-white/[0.04] px-3 py-2.5 text-[12.5px] leading-[1.55] text-[#b4b4b4]"
           >
             {reason}
           </p>
         ))}
       </div>
 
-      <div className="mb-4 flex-1 rounded-[16px] border border-brand-line bg-brand-bg p-4">
+      <div
+        className="mb-4 flex-1 rounded-[16px] border border-white/12 p-4"
+        style={{ background: "rgba(91,156,255,0.06)" }}
+      >
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-brand-dark">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#5b9cff]">
             제안 메일 초안 (영문)
           </span>
           <button
             type="button"
             onClick={copyEmail}
-            className="shrink-0 rounded-full bg-white px-3 py-1 text-[11.5px] font-bold text-brand-dark shadow-sm hover:bg-brand-bg"
+            className="shrink-0 rounded-full bg-white/[0.08] px-3 py-1 text-[11.5px] font-bold text-[#5b9cff] hover:bg-white/[0.14]"
           >
             {copied ? "복사됨!" : "복사"}
           </button>
         </div>
-        <p className="mb-2 text-[13px] font-bold text-foreground">{buyer.outreachEmailSubject}</p>
-        <p className="whitespace-pre-line text-[12.5px] leading-[1.65] text-ink2">
+        <p className="mb-2 text-[13px] font-bold text-white">{buyer.outreachEmailSubject}</p>
+        <p className="whitespace-pre-line text-[12.5px] leading-[1.65] text-[#b4b4b4]">
           {buyer.outreachEmailBody}
         </p>
-        <p className="mt-3 border-t border-brand-line pt-2.5 text-[12px] leading-[1.5] text-brand-dark">
+        <p className="mt-3 border-t border-white/12 pt-2.5 text-[12px] leading-[1.5] text-[#5b9cff]">
           💡 {buyer.emailCoachingNote}
         </p>
       </div>
@@ -718,25 +757,26 @@ function BuyerCard({
             href={buyer.website}
             target="_blank"
             rel="noopener noreferrer"
-            className="truncate font-semibold text-brand hover:underline"
+            className="truncate font-semibold text-[#5b9cff] hover:underline"
           >
             {buyer.website.replace(/^https?:\/\//, "")} ↗
           </a>
         )}
-        <span className={buyer.contactKnown ? "font-semibold text-brand-dark" : "text-muted"}>
+        <span className={buyer.contactKnown ? "font-semibold text-[#5b9cff]" : "text-[#9a9a9a]"}>
           {buyer.contactKnown ? "연락처 확인됨" : "연락처 미확인"}
         </span>
-        {buyer.sourceNote && <span className="text-muted">출처: {buyer.sourceNote}</span>}
+        {buyer.sourceNote && <span className="text-[#9a9a9a]">출처: {buyer.sourceNote}</span>}
       </div>
 
       <button
         type="button"
         onClick={onToggleSave}
-        className={`rounded-full px-4 py-2.5 text-[13.5px] font-bold transition ${
+        className="rounded-full px-4 py-2.5 text-[13.5px] font-bold transition"
+        style={
           saved
-            ? "bg-brand-bg text-brand-dark"
-            : "bg-brand text-white hover:bg-brand-dark"
-        }`}
+            ? { background: "rgba(91,156,255,0.15)", color: "#5b9cff" }
+            : { background: "linear-gradient(180deg,#5b9cff,#2f6fe0)", color: "#fff" }
+        }
       >
         {saved ? "✓ 내 목록에 저장됨" : "내 목록에 추가"}
       </button>
@@ -761,21 +801,25 @@ function ActionItem({
     <button
       type="button"
       onClick={onSelect}
-      className={`flex items-start gap-3 rounded-[12px] border px-4 py-3 text-left transition ${
+      className="flex items-start gap-3 rounded-[12px] border px-4 py-3 text-left transition"
+      style={
         selected
-          ? "border-brand bg-brand-bg"
-          : "border-line bg-surface2 hover:border-brand-line"
-      }`}
+          ? { borderColor: "#5b9cff", background: "rgba(91,156,255,0.1)" }
+          : { borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)" }
+      }
     >
       <span
-        className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold ${
-          selected ? "bg-brand text-white" : "bg-white text-ink2 border border-line"
-        }`}
+        className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold"
+        style={
+          selected
+            ? { background: "linear-gradient(180deg,#5b9cff,#2f6fe0)", color: "#fff" }
+            : { background: "rgba(255,255,255,0.06)", color: "#b4b4b4", border: "1px solid rgba(255,255,255,0.12)" }
+        }
       >
         {selected ? "✓" : index}
       </span>
-      <span className="flex-1 text-[13.5px] leading-[1.6] text-ink2">{text}</span>
-      {locked && <span className="shrink-0 text-[12px] text-muted">🔒 BIZ</span>}
+      <span className="flex-1 text-[13.5px] leading-[1.6] text-[#b4b4b4]">{text}</span>
+      {locked && <span className="shrink-0 text-[12px] text-[#9a9a9a]">🔒 BIZ</span>}
     </button>
   );
 }
@@ -791,10 +835,10 @@ function MarketSelect({
     <select
       value={market}
       onChange={(e) => setMarket(e.target.value)}
-      className="rounded-[10px] border border-line px-3.5 py-2.5 text-[14.5px] text-foreground outline-none focus:border-brand"
+      className="rounded-[10px] border border-white/12 bg-white/[0.03] px-3.5 py-2.5 text-[14.5px] text-white outline-none focus:border-[#5b9cff]"
     >
       {MARKETS.map((m) => (
-        <option key={m} value={m}>
+        <option key={m} value={m} className="bg-black text-white">
           {m}
         </option>
       ))}
@@ -806,7 +850,7 @@ function Spinner() {
   return (
     <span
       aria-hidden
-      className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand-line border-t-brand"
+      className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#5b9cff]/30 border-t-[#5b9cff]"
     />
   );
 }
