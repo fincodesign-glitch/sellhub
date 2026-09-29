@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import NavLink, { splitNavItems, TOOL_LINKS } from "@/components/NavLink";
-import Logo from "@/components/Logo";
 import SignalWave from "@/components/SignalWave";
 import DarkSiteFooter from "@/components/DarkSiteFooter";
 import { IconImage, IconRadar, IconTrend, IconMatch, IconDocument, type IconProps } from "@/components/Icons";
@@ -254,7 +253,9 @@ export default function ProfilePage() {
       <header className="sticky top-0 z-30 border-b border-white/10 bg-black/70 backdrop-blur-xl">
         <input type="checkbox" id="mobile-nav-toggle" className="peer hidden" />
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Logo suffix=".ai" />
+          <Link href="/" aria-label="SellHub" className="inline-flex items-center gap-2.5 text-[16px] font-extrabold tracking-tight text-white">
+            SellHub<span className="font-semibold">.ai</span>
+          </Link>
           <div className="flex items-center gap-4">
             <div className="hidden items-center gap-4 sm:flex">
               {TOOL_LINKS.map((item) => (

@@ -9,13 +9,11 @@ import type { ComponentType } from "react";
 export default function Logo({
   className = "",
   brand = "SellHub",
-  suffix,
   href = "/",
   icon: Icon = SignalMark,
 }: {
   className?: string;
   brand?: string;
-  suffix?: string;
   href?: string;
   icon?: ComponentType<{ className?: string }>;
 }) {
@@ -25,7 +23,6 @@ export default function Logo({
         <Icon className="h-[18px] w-[18px]" />
       </span>
       {brand}
-      {suffix && <span className="font-semibold">{suffix}</span>}
     </Link>
   );
 }
