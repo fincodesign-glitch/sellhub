@@ -8,7 +8,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import type { IntentAnalysisResult, IntentBuyer, Relevance, ReportMeta } from "@/lib/analysis-types";
-import { warmPdfFonts } from "@/lib/pdf-warmup";
+import { warmPdfFonts } from "@/lib/pdf-worker-client";
 
 // Kept local (not imported from lib/site-content) because that module also
 // exports server-only @vercel/blob calls that must not end up in the client bundle.
@@ -157,9 +157,8 @@ export default function IntentPage() {
     setSelectedActions(new Set());
     setShowUpgradePrompt(false);
     setStatus("loading");
-    // Pay the one-time CJK font-parsing cost now, while the user is watching
-    // the analysis progress log (not trying to click anything else) — not
-    // right when the page loads, which froze the page under their cursor.
+    // Parse the CJK fonts in the PDF worker during the multi-minute analysis,
+    // so the download click later doesn't have to.
     warmPdfFonts();
     abortRef.current?.abort();
     const controller = new AbortController();

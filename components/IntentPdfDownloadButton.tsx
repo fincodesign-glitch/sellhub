@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { pdf } from "@react-pdf/renderer";
-import IntentReportPdf from "./IntentReportPdf";
+import { renderPdf } from "@/lib/pdf-worker-client";
 import type { IntentAnalysisResult, ReportMeta } from "@/lib/analysis-types";
 
 export default function IntentPdfDownloadButton({
@@ -18,7 +17,7 @@ export default function IntentPdfDownloadButton({
     if (generating) return;
     setGenerating(true);
     try {
-      const blob = await pdf(<IntentReportPdf result={result} meta={meta} />).toBlob();
+      const blob = await renderPdf({ kind: "intent", result, meta });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

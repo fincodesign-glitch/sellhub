@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { pdf } from "@react-pdf/renderer";
-import ReportPdf from "./ReportPdf";
+import { renderPdf } from "@/lib/pdf-worker-client";
 import type { AnalysisResult, ReportMeta } from "@/lib/analysis-types";
 
 export default function PdfDownloadButton({
@@ -18,7 +17,7 @@ export default function PdfDownloadButton({
     if (generating) return;
     setGenerating(true);
     try {
-      const blob = await pdf(<ReportPdf result={result} meta={meta} />).toBlob();
+      const blob = await renderPdf({ kind: "report", result, meta });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -41,13 +40,14 @@ export default function PdfDownloadButton({
         type="button"
         onClick={handleClick}
         disabled={generating}
-        className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-[13.5px] font-bold text-white shadow-[0_4px_14px_rgba(79,168,221,0.3)] transition-all hover:scale-[1.02] hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+        className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+        style={{ background: "linear-gradient(180deg,#5b9cff,#2f6fe0)", boxShadow: "0 4px 14px rgba(91,156,255,0.3)" }}
       >
         {generating ? "PDF 생성 중..." : "📄 PDF로 다운로드"}
       </button>
       {generating && (
-        <p className="max-w-[220px] text-right text-[11px] leading-snug text-muted">
-          한글·일본어 폰트를 처리하느라 20~30초 정도 걸려요. 이 창을 닫지 말고 기다려주세요.
+        <p className="max-w-[220px] text-right text-[11px] leading-snug text-[#9a9a9a]">
+          한글·일본어 폰트를 처리하느라 30초 정도 걸려요. 이 창은 닫지 말아주세요.
         </p>
       )}
     </div>
