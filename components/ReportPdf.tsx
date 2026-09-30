@@ -178,7 +178,11 @@ const styles = StyleSheet.create({
   },
   emailSubject: { fontSize: 9, fontWeight: "bold", color: INK, marginBottom: 4 },
   emailBody: { fontSize: 8.5, color: INK2, lineHeight: 1.55 },
-  emailCoaching: { fontSize: 8, color: BRAND_DARK, marginTop: 5, fontStyle: "italic" },
+  // Noto Sans KR/JP have no italic variant registered — react-pdf can't
+  // synthesize one, so fontStyle: "italic" here crashes PDF generation for
+  // every report that has a buyer (i.e. always). Color/weight already set
+  // this text apart from the surrounding email body, so italic isn't needed.
+  emailCoaching: { fontSize: 8, color: BRAND_DARK, fontWeight: "bold", marginTop: 5 },
   actionRow: { flexDirection: "row", marginBottom: 6, gap: 7 },
   actionIndexBadge: {
     width: 13,
