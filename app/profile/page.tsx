@@ -199,6 +199,7 @@ export default function ProfilePage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let sawFinalEvent = false;
 
       for (;;) {
         const { done, value } = await reader.read();
@@ -218,15 +219,23 @@ export default function ProfilePage() {
             if (event.type === "progress") {
               setProgressLog((prev) => [...prev.slice(-4), event.label]);
             } else if (event.type === "result") {
+              sawFinalEvent = true;
               setResult(event.data);
               setResultMeta(meta);
             } else if (event.type === "error") {
+              sawFinalEvent = true;
               setErrorMessage(event.message);
             }
           } catch {
             // ignore malformed line (shouldn't happen)
           }
         }
+      }
+
+      if (!sawFinalEvent) {
+        setStatus("error");
+        setErrorMessage("리포트 생성이 중간에 끊겼습니다. 잠시 후 다시 시도해주세요.");
+        return;
       }
 
       setStatus((prev) => (prev === "error" ? prev : "done"));

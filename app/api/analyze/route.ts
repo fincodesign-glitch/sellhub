@@ -115,7 +115,7 @@ const REPORT_SCHEMA = {
         ],
         additionalProperties: false,
       },
-      description: "관심을 가질 만한 현지 바이어 후보 최대 5곳",
+      description: "관심을 가질 만한 현지 바이어 후보 최대 3곳",
     },
     recommendedActions: {
       type: "array",
@@ -204,7 +204,7 @@ export async function POST(request: Request) {
 - executiveSummary: 리포트 전체 총평 2~3문장
 - marketInsight: 목표 시장의 최근 동향·소비자 수요·경쟁 현황 (3~5개 불릿)
 - trends: 검색·SNS·뉴스에서 포착되는 구매 의도 키워드 트렌드
-- buyers: 관심을 가질 만한 ${market} 현지 수입사·유통사·편집샵·온라인몰 후보 최대 5곳. 반드시 실제 검색 결과에 근거해서 작성하고:
+- buyers: 관심을 가질 만한 ${market} 현지 수입사·유통사·편집샵·온라인몰 후보 최대 3곳. 반드시 실제 검색 결과에 근거해서 작성하고:
   - reasons: 왜 이 회사를 추천하는지 근거
   - detailedProfile: 사업 영역·취급 카테고리·규모·유통 채널 등 3~4문장
   - suggestedApproach: 이 바이어에게 어떻게 접근하면 좋을지 1~2문장
@@ -216,7 +216,7 @@ export async function POST(request: Request) {
 - risks: 이 시장 진출 시 주의해야 할 리스크·규제·문화적 고려사항 3~4개.
 
 조사는 효율적으로 진행하세요. 이 작업은 실행 시간 제한이 있으므로, 검색과 페이지 조회 횟수를 아껴야 합니다.
-- 검색은 최대 5회, 페이지 조회(web_fetch)는 최대 2회로 제한하고, 이미 조회했거나 검색에서 충분한 정보를 얻은 페이지는 다시 조회하지 마세요.
+- 검색은 최대 4회, 페이지 조회(web_fetch)는 최대 1회로 제한하고, 이미 조회했거나 검색에서 충분한 정보를 얻은 페이지는 다시 조회하지 마세요.
 - 목표 시장이 여러 국가를 포함하는 지역(예: 동남아시아)인 경우, 모든 국가를 개별적으로 조사하지 마세요. 지역 전체를 다루는 검색 1~2회와, 그 중 가장 유망한 국가 1~2곳에 집중한 검색으로 조사를 마치세요.
 - 핵심 정보(시장 동향, 트렌드 키워드, 바이어 후보)를 파악하는 데 필요한 만큼만 검색하고, 충분한 근거를 모았다면 즉시 검색을 멈추고 바로 최종 JSON을 작성하세요. marketInsight와 buyers는 절대 빈 배열로 두지 말고, 검색으로 찾은 실제 정보를 최대한 채워 넣으세요.
 - 바이어마다 영어 콜드메일까지 작성해야 해서 최종 JSON 작성 자체에도 시간이 걸립니다. 각 필드를 요청된 분량(문장 수·단어 수) 이내로 간결하게 작성해 전체 응답 시간을 관리하세요.
@@ -255,18 +255,27 @@ ${productName ? `참고 제품/브랜드명: ${productName}\n` : ""}${keywords ?
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      // The platform kills the function at maxDuration with no final line, which
+      // leaves the client with neither a result nor an error. Stop a bit earlier
+      // ourselves so the user gets an explicit timeout message instead.
+      let timedOut = false;
+      let deadline: ReturnType<typeof setTimeout> | undefined;
       try {
         const claudeStream = client.messages.stream({
           model: "claude-sonnet-5",
           max_tokens: 20000,
           system: systemPrompt,
-          output_config: { effort: "medium", format: { type: "json_schema", schema: REPORT_SCHEMA } },
+          output_config: { effort: "low", format: { type: "json_schema", schema: REPORT_SCHEMA } },
           tools: [
-            { type: "web_search_20260209", name: "web_search", max_uses: 5 },
-            { type: "web_fetch_20260209", name: "web_fetch", max_uses: 2 },
+            { type: "web_search_20260209", name: "web_search", max_uses: 4 },
+            { type: "web_fetch_20260209", name: "web_fetch", max_uses: 1 },
           ],
           messages: [{ role: "user", content }],
         });
+        deadline = setTimeout(() => {
+          timedOut = true;
+          claudeStream.abort();
+        }, 280_000);
 
         const seenQueries = new Set<string>();
 
@@ -330,12 +339,15 @@ ${productName ? `참고 제품/브랜드명: ${productName}\n` : ""}${keywords ?
 
         sendLine(controller, encoder, { type: "result", data });
       } catch (err) {
-        console.error("[/api/analyze]", err);
+        console.error("[/api/analyze]", timedOut ? "timed out" : "", err);
         sendLine(controller, encoder, {
           type: "error",
-          message: "리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+          message: timedOut
+            ? "리포트 생성 시간이 너무 오래 걸려 중단됐습니다. 키워드를 조금 더 간단히 해서 다시 시도해주세요."
+            : "리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
         });
       } finally {
+        clearTimeout(deadline);
         controller.close();
       }
     },
