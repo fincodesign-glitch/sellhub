@@ -472,7 +472,7 @@ export default function IntentPage() {
               disabled={isBusy || !isSubmittable()}
               className="rounded-full bg-brand px-7 py-3.5 text-[14.5px] font-bold text-white shadow-[0_6px_20px_rgba(91,61,245,0.35)] transition-all hover:scale-[1.01] hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
             >
-              {isBusy ? "검색 중..." : "AI 검색 시작"}
+              {isBusy ? "분석 중..." : "분석하기"}
             </button>
           </div>
         </form>
