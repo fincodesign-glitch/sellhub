@@ -142,6 +142,23 @@ const REPORT_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+// With a product URL or detail-page image, the product summary is the point of
+// the input, so the schema requires it instead of allowing null — otherwise the
+// model sometimes left it empty and the "제품 분석" section never appeared.
+function reportSchemaFor(mode: InputMode) {
+  if (mode === "text") return REPORT_SCHEMA;
+  return {
+    ...REPORT_SCHEMA,
+    properties: {
+      ...REPORT_SCHEMA.properties,
+      productSummary: {
+        type: "string",
+        description: "제품 URL이나 이미지에서 파악한 브랜드·향/성분·효능·용량·가격·인증 요약 3~4문장. 반드시 채울 것.",
+      },
+    },
+  };
+}
+
 function sendLine(controller: ReadableStreamDefaultController<Uint8Array>, encoder: TextEncoder, obj: unknown) {
   controller.enqueue(encoder.encode(`${JSON.stringify(obj)}\n`));
 }
@@ -171,6 +188,9 @@ export async function POST(request: NextRequest) {
   const productUrl = (body.productUrl ?? "").trim();
   const imageBase64 = body.imageBase64 ?? "";
   const imageMediaType = body.imageMediaType ?? "";
+  // Reading a detail-page image already takes a large share of the time budget
+  // (a live test finished in 255s of the 280s cutoff), so it gets one fewer search.
+  const searchLimit = mode === "image" ? 3 : 4;
 
   if (mode === "text" && !productName && !keywords) {
     return new Response("productName 또는 keywords 중 하나는 필수입니다.", { status: 400 });
@@ -219,7 +239,7 @@ export async function POST(request: NextRequest) {
 - risks: 이 시장 진출 시 주의해야 할 리스크·규제·문화적 고려사항 3~4개.
 
 조사는 효율적으로 진행하세요. 이 작업은 실행 시간 제한이 있으므로, 검색과 페이지 조회 횟수를 아껴야 합니다.
-- 검색은 최대 4회, 페이지 조회(web_fetch)는 최대 1회로 제한하고, 이미 조회했거나 검색에서 충분한 정보를 얻은 페이지는 다시 조회하지 마세요.
+- 검색은 최대 ${searchLimit}회, 페이지 조회(web_fetch)는 최대 1회로 제한하고, 이미 조회했거나 검색에서 충분한 정보를 얻은 페이지는 다시 조회하지 마세요.
 - 목표 시장이 여러 국가를 포함하는 지역(예: 동남아시아)인 경우, 모든 국가를 개별적으로 조사하지 마세요. 지역 전체를 다루는 검색 1~2회와, 그 중 가장 유망한 국가 1~2곳에 집중한 검색으로 조사를 마치세요.
 - 핵심 정보(시장 동향, 트렌드 키워드, 바이어 후보)를 파악하는 데 필요한 만큼만 검색하고, 충분한 근거를 모았다면 즉시 검색을 멈추고 바로 최종 JSON을 작성하세요. marketInsight와 buyers는 절대 빈 배열로 두지 말고, 검색으로 찾은 실제 정보를 최대한 채워 넣으세요.
 - 바이어마다 영어 콜드메일까지 작성해야 해서 최종 JSON 작성 자체에도 시간이 걸립니다. 각 필드를 요청된 분량(문장 수·단어 수) 이내로 간결하게 작성해 전체 응답 시간을 관리하세요.
@@ -268,9 +288,9 @@ ${productName ? `참고 제품/브랜드명: ${productName}\n` : ""}${keywords ?
           model: "claude-sonnet-5",
           max_tokens: 20000,
           system: systemPrompt,
-          output_config: { effort: "low", format: { type: "json_schema", schema: REPORT_SCHEMA } },
+          output_config: { effort: "low", format: { type: "json_schema", schema: reportSchemaFor(mode) } },
           tools: [
-            { type: "web_search_20260209", name: "web_search", max_uses: 4 },
+            { type: "web_search_20260209", name: "web_search", max_uses: searchLimit },
             { type: "web_fetch_20260209", name: "web_fetch", max_uses: 1 },
           ],
           messages: [{ role: "user", content }],
