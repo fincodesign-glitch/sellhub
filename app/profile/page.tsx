@@ -46,6 +46,11 @@ const MODE_TABS: { key: Mode; label: string; emoji: string }[] = [
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+interface Delegation {
+  requestId: string;
+  actions: { number: number; text: string }[];
+}
+
 function fileToBase64(file: File): Promise<{ data: string; mediaType: string }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -60,7 +65,8 @@ function fileToBase64(file: File): Promise<{ data: string; mediaType: string }> 
 }
 
 export default function ProfilePage() {
-  const { user, signOutUser } = useAuth();
+  const { user, account, isPaidPlan, signOutUser } = useAuth();
+  const signedIn = Boolean(user || account);
 
   const [mode, setMode] = useState<Mode>("text");
   const [productName, setProductName] = useState("");
@@ -81,6 +87,9 @@ export default function ProfilePage() {
   const [savedBuyers, setSavedBuyers] = useState<Set<string>>(new Set());
   const [selectedActions, setSelectedActions] = useState<Set<number>>(new Set());
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [delegation, setDelegation] = useState<Delegation | null>(null);
+  const [delegating, setDelegating] = useState(false);
+  const [delegateError, setDelegateError] = useState<string | null>(null);
   const [navItems, setNavItems] = useState<NavItem[]>(DEFAULT_NAV);
   const { before: navBeforeLogin, after: navAfterLogin } = splitNavItems(navItems);
 
@@ -92,10 +101,6 @@ export default function ProfilePage() {
       })
       .catch(() => {});
   }, []);
-
-  // 아직 실제 결제/구독 연동이 없어서 모든 사용자를 Free 플랜으로 취급합니다.
-  // 유료 플랜 여부를 실제로 구분하려면 결제 시스템과 사용자별 플랜 저장이 필요합니다.
-  const isPaidPlan = false;
 
   const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -140,12 +145,48 @@ export default function ProfilePage() {
       setShowUpgradePrompt(true);
       return;
     }
+    setDelegateError(null);
     setSelectedActions((prev) => {
       const next = new Set(prev);
       if (next.has(index)) next.delete(index);
       else next.add(index);
       return next;
     });
+  }
+
+  async function handleDelegate() {
+    if (!result || !resultMeta || selectedActions.size === 0) return;
+    const actions = [...selectedActions]
+      .sort((a, b) => a - b)
+      .map((i) => ({ number: i + 1, text: result.recommendedActions[i] }));
+    setDelegating(true);
+    setDelegateError(null);
+    try {
+      const res = await fetch("/api/delegations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actions,
+          meta: {
+            market: resultMeta.market,
+            productName: resultMeta.productName,
+            keywords: resultMeta.keywords,
+            productUrl: resultMeta.productUrl ?? "",
+          },
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Partial<Delegation> & { error?: string };
+      if (!res.ok || !data.requestId || !data.actions) {
+        setDelegateError(data.error ?? "요청을 보내지 못했습니다. 다시 시도해주세요.");
+        return;
+      }
+      setDelegation({ requestId: data.requestId, actions: data.actions });
+      setSelectedActions(new Set());
+    } catch {
+      setDelegateError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      setDelegating(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -159,6 +200,8 @@ export default function ProfilePage() {
     setSavedBuyers(new Set());
     setSelectedActions(new Set());
     setShowUpgradePrompt(false);
+    setDelegation(null);
+    setDelegateError(null);
     setStatus("loading");
     // Parse the CJK fonts in the PDF worker during the multi-minute analysis,
     // so the download click later doesn't have to.
@@ -277,16 +320,28 @@ export default function ProfilePage() {
                 </NavLink>
               ))}
             </div>
-            <span className="rounded-full bg-[#5b9cff]/15 px-3 py-1 text-[12px] font-bold text-[#5b9cff]">
-              Free 플랜
+            <span
+              className="rounded-full px-3 py-1 text-[12px] font-bold"
+              style={
+                isPaidPlan
+                  ? { background: "linear-gradient(180deg,#5b9cff,#2f6fe0)", color: "#fff" }
+                  : { background: "rgba(91,156,255,0.15)", color: "#5b9cff" }
+              }
+            >
+              {isPaidPlan ? "Master" : "Free 플랜"}
             </span>
-            {user ? (
+            {signedIn ? (
               <>
-                {user.photoURL ? (
+                {user?.photoURL ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full" />
                 ) : (
-                  <div className="h-8 w-8 rounded-full bg-[#5b9cff]/15" />
+                  <div
+                    title={account?.id}
+                    className="grid h-8 w-8 place-items-center rounded-full bg-[#5b9cff]/15 text-[13px] font-bold uppercase text-[#5b9cff]"
+                  >
+                    {account?.id.charAt(0) ?? ""}
+                  </div>
                 )}
                 <button
                   onClick={() => signOutUser()}
@@ -334,7 +389,7 @@ export default function ProfilePage() {
               {item.label}
             </NavLink>
           ))}
-          {user ? (
+          {signedIn ? (
             <button
               onClick={() => signOutUser()}
               className="rounded-[8px] px-2 py-2.5 text-left text-[15px] font-semibold text-[#9a9a9a] hover:bg-white/[0.08]"
@@ -600,8 +655,14 @@ export default function ProfilePage() {
 
             {result.recommendedActions.length > 0 && (
               <Section icon={IconDocument} title="추천 실행 계획">
+                {delegation ? (
+                  <DelegationReceipt delegation={delegation} onAddMore={() => setDelegation(null)} />
+                ) : (
+                <>
                 <p className="mb-4 text-[13px] leading-[1.6] text-[#9a9a9a]">
-                  번호를 선택하면 SellHub가 해당 실행 항목을 대신 진행해드립니다. (Business 플랜 전용 기능)
+                  {isPaidPlan
+                    ? "SellHub에 맡길 항목의 번호를 선택하세요. 선택한 항목은 SellHub가 대신 진행해드립니다."
+                    : "번호를 선택하면 SellHub가 해당 실행 항목을 대신 진행해드립니다. (Business 플랜 전용 기능)"}
                 </p>
                 <div className="flex flex-col gap-2.5">
                   {result.recommendedActions.map((action, i) => (
@@ -631,6 +692,35 @@ export default function ProfilePage() {
                       요금제 보기
                     </Link>
                   </div>
+                )}
+                {isPaidPlan && selectedActions.size > 0 && (
+                  <div
+                    className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-[#5b9cff]/40 px-5 py-4"
+                    style={{ background: "rgba(91,156,255,0.1)" }}
+                  >
+                    <p className="text-[13.5px] font-bold text-white">
+                      {selectedActions.size}개 항목 선택됨
+                      <span className="ml-2 font-semibold text-[#9a9a9a]">
+                        {[...selectedActions].sort((a, b) => a - b).map((i) => `${i + 1}번`).join(", ")}
+                      </span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleDelegate}
+                      disabled={delegating}
+                      className="rounded-full px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+                      style={{ background: "linear-gradient(180deg,#5b9cff,#2f6fe0)", boxShadow: "0 4px 14px rgba(91,156,255,0.3)" }}
+                    >
+                      {delegating ? "요청 보내는 중..." : `선택한 ${selectedActions.size}개 항목 SellHub에 맡기기`}
+                    </button>
+                  </div>
+                )}
+                {delegateError && (
+                  <p className="mt-3 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-300">
+                    {delegateError}
+                  </p>
+                )}
+                </>
                 )}
               </Section>
             )}
@@ -830,6 +920,55 @@ function ActionItem({
       <span className="flex-1 text-[13.5px] leading-[1.6] text-[#b4b4b4]">{text}</span>
       {locked && <span className="shrink-0 text-[12px] text-[#9a9a9a]">🔒 BIZ</span>}
     </button>
+  );
+}
+
+function DelegationReceipt({ delegation, onAddMore }: { delegation: Delegation; onAddMore: () => void }) {
+  return (
+    <div>
+      <div
+        className="mb-5 rounded-[16px] border border-[#5b9cff]/40 px-5 py-5"
+        style={{ background: "linear-gradient(160deg, rgba(91,156,255,0.16), rgba(91,156,255,0.03) 70%)" }}
+      >
+        <p className="mb-1 text-[12px] font-bold uppercase tracking-[0.12em] text-[#5b9cff]">Step 2 · 대행 접수 완료</p>
+        <h3 className="mb-2 text-[18px] font-extrabold tracking-tight text-white">
+          SellHub가 선택한 항목을 대신 진행합니다
+        </h3>
+        <p className="text-[13.5px] leading-[1.65] text-[#b4b4b4]">
+          담당자가 요청 내용을 확인한 뒤 진행 일정과 함께 연락드립니다. 문의하실 때는 아래 접수번호를 알려주세요.
+        </p>
+        <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-black/40 px-4 py-2 font-mono text-[13px] font-bold text-white">
+          <span className="text-[#9a9a9a]">접수번호</span>
+          {delegation.requestId}
+        </p>
+      </div>
+
+      <p className="mb-2.5 text-[13px] font-bold text-[#b4b4b4]">맡긴 항목 {delegation.actions.length}개</p>
+      <ul className="mb-5 flex flex-col gap-2">
+        {delegation.actions.map((action) => (
+          <li
+            key={action.number}
+            className="flex items-start gap-3 rounded-[12px] border border-white/10 bg-white/[0.03] px-4 py-3"
+          >
+            <span className="mt-0.5 w-6 shrink-0 text-[13px] font-bold text-[#5b9cff]">
+              {String(action.number).padStart(2, "0")}
+            </span>
+            <span className="flex-1 text-[13.5px] leading-[1.6] text-[#b4b4b4]">{action.text}</span>
+            <span className="shrink-0 rounded-full bg-[#5b9cff]/15 px-2.5 py-0.5 text-[11.5px] font-bold text-[#5b9cff]">
+              접수됨
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <button
+        type="button"
+        onClick={onAddMore}
+        className="rounded-full border border-white/20 px-5 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-white/[0.08]"
+      >
+        다른 항목도 맡기기
+      </button>
+    </div>
   );
 }
 

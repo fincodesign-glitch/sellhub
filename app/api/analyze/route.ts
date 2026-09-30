@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages";
+import type { NextRequest } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getSessionUser } from "@/lib/user-auth";
 
 export const runtime = "nodejs";
 // 동남아시아처럼 여러 나라를 아우르는 시장은 조사에 시간이 더 걸려, 서버리스
@@ -144,9 +146,10 @@ function sendLine(controller: ReadableStreamDefaultController<Uint8Array>, encod
   controller.enqueue(encoder.encode(`${JSON.stringify(obj)}\n`));
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const clientIp = getClientIp(request);
-  const rateLimit = checkRateLimit(clientIp);
+  // Master skips the per-IP cap; the overall hourly cap still protects API spend.
+  const rateLimit = checkRateLimit(clientIp, { skipPerIp: getSessionUser(request)?.plan === "master" });
   if (!rateLimit.allowed) {
     return new Response(
       `요청이 너무 많습니다. ${rateLimit.retryAfterMinutes}분 후 다시 시도해주세요.`,

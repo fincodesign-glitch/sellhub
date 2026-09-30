@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { DelegationRequest } from "@/lib/delegations";
 import type { NavItem, PricingPlan, SiteContent } from "@/lib/site-content";
 
 type LoadState = "checking" | "needs-login" | "ready";
@@ -14,6 +15,19 @@ export default function AdminPage() {
   const [content, setContent] = useState<SiteContent | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [requests, setRequests] = useState<DelegationRequest[] | null>(null);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (loadState !== "ready") return;
+    fetch("/api/admin/delegations", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data: { requests?: DelegationRequest[]; error?: string }) => {
+        setRequests(data.requests ?? []);
+        setRequestsError(data.error ?? null);
+      })
+      .catch(() => setRequestsError("대행 요청 목록을 불러오지 못했습니다."));
+  }, [loadState]);
 
   async function loadContent() {
     const res = await fetch("/api/admin/content");
@@ -163,6 +177,44 @@ export default function AdminPage() {
       </header>
 
       <main className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-8">
+        <section className="rounded-[14px] border border-line bg-white p-6">
+          <h2 className="mb-1 text-[15px] font-extrabold">
+            실행 항목 대행 요청 {requests ? `(${requests.length})` : ""}
+          </h2>
+          <p className="mb-4 text-[12.5px] text-muted">고객이 &ldquo;SellHub에 맡기기&rdquo;로 접수한 요청입니다. 최신순.</p>
+          {requestsError && <p className="mb-3 text-[12.5px] text-red-500">{requestsError}</p>}
+          {requests === null ? (
+            <p className="text-[13px] text-muted">불러오는 중...</p>
+          ) : requests.length === 0 ? (
+            <p className="text-[13px] text-muted">아직 접수된 요청이 없습니다.</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {requests.map((r) => (
+                <div key={r.requestId} className="rounded-[12px] border border-line p-4">
+                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-mono text-[13px] font-bold">{r.requestId}</span>
+                    <span className="text-[12px] text-muted">
+                      {new Date(r.createdAt).toLocaleString("ko-KR")} · 요청자 {r.requester}
+                    </span>
+                  </div>
+                  <p className="mb-2 text-[12.5px] text-ink2">
+                    {r.productName || r.keywords || r.productUrl || "(제품 정보 없음)"} · 목표 시장 {r.market}
+                    {r.keywords && r.productName ? ` · 키워드 ${r.keywords}` : ""}
+                  </p>
+                  <ul className="flex flex-col gap-1">
+                    {r.actions.map((a) => (
+                      <li key={a.number} className="text-[13px] text-foreground">
+                        <span className="mr-2 font-bold text-brand-dark">{String(a.number).padStart(2, "0")}</span>
+                        {a.text}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         <section className="rounded-[14px] border border-line bg-white p-6">
           <h2 className="mb-4 text-[15px] font-extrabold">상단 메뉴 (카테고리)</h2>
           <div className="flex flex-col gap-3">
