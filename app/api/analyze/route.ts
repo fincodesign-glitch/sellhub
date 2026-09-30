@@ -331,9 +331,11 @@ ${productName ? `참고 제품/브랜드명: ${productName}\n` : ""}${keywords ?
         sendLine(controller, encoder, { type: "result", data });
       } catch (err) {
         console.error("[/api/analyze]", err);
+        // TEMPORARY DIAGNOSTIC — revert once the cause is confirmed.
+        const debugDetail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
         sendLine(controller, encoder, {
           type: "error",
-          message: "리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+          message: `[TEMP DEBUG] ${debugDetail}`,
         });
       } finally {
         controller.close();
