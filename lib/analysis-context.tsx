@@ -100,18 +100,36 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const runIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
-  const finish = useCallback((runId: number, outcome: { result: AnalysisResult } | { error: string }) => {
+  const finish = useCallback(
+    (runId: number, outcome: { result: AnalysisResult; savedReportId?: string } | { error: string }) => {
     if (runIdRef.current !== runId) return;
     const completedAt = Date.now();
     const stored = readStored();
     if ("result" in outcome) {
-      setState((s) => ({ ...s, status: "done", result: outcome.result, error: null, completedAt }));
-      if (stored) writeStored({ ...stored, status: "done", completedAt, result: outcome.result });
+      const savedReportId = outcome.savedReportId;
+      setState((s) => ({
+        ...s,
+        status: "done",
+        result: outcome.result,
+        error: null,
+        completedAt,
+        savedReportId: savedReportId ?? s.savedReportId,
+      }));
+      if (stored)
+        writeStored({
+          ...stored,
+          status: "done",
+          completedAt,
+          result: outcome.result,
+          savedReportId: savedReportId ?? stored.savedReportId,
+        });
     } else {
       setState((s) => ({ ...s, status: "error", error: outcome.error, completedAt }));
       writeStored(null);
     }
-  }, []);
+    },
+    [],
+  );
 
   const pollJob = useCallback(
     async (runId: number, jobId: string, startedAt: number) => {
@@ -124,9 +142,9 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
           const res = await fetch(`/api/analyze/jobs/${jobId}`, { cache: "no-store" });
           const data = (await res.json()) as
             | { status: "pending" }
-            | { status: "done"; result: AnalysisResult }
+            | { status: "done"; result: AnalysisResult; reportId?: string }
             | { status: "error"; message: string };
-          if (data.status === "done") return finish(runId, { result: data.result });
+          if (data.status === "done") return finish(runId, { result: data.result, savedReportId: data.reportId });
           if (data.status === "error") return finish(runId, { error: data.message });
         } catch {
           // Network hiccup — keep polling until MAX_RUN_MS.

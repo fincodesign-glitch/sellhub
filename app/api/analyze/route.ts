@@ -302,17 +302,20 @@ ${productName ? `참고 제품/브랜드명: ${productName}\n` : ""}${keywords ?
     emit(final);
     const completedAt = new Date().toISOString();
     try {
-      await saveJobOutcome(
-        jobId,
-        final.type === "result"
-          ? { status: "done", completedAt, result: final.data }
-          : { status: "error", completedAt, message: final.message },
-      );
+      // Save the report first so the job outcome can point to it — a browser that
+      // reconnects after a refresh learns about the saved report from the outcome.
+      let reportId: string | undefined;
       if (final.type === "result" && sessionUser) {
-        const reportId = newId();
+        reportId = newId();
         await saveReport(sessionUser.id, { id: reportId, createdAt: completedAt, meta, result: final.data });
         emit({ type: "saved", reportId });
       }
+      await saveJobOutcome(
+        jobId,
+        final.type === "result"
+          ? { status: "done", completedAt, result: final.data, reportId }
+          : { status: "error", completedAt, message: final.message },
+      );
     } catch (err) {
       console.error("[/api/analyze] could not persist job outcome", err);
     }

@@ -7,7 +7,7 @@ import type { AnalysisResult, ReportMeta } from "@/lib/analysis-types";
 // accounts (My Page). Both are private JSON files in Vercel Blob.
 
 export type JobOutcome =
-  | { status: "done"; completedAt: string; result: AnalysisResult }
+  | { status: "done"; completedAt: string; result: AnalysisResult; reportId?: string }
   | { status: "error"; completedAt: string; message: string };
 
 export interface SavedReport {
