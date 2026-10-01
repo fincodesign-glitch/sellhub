@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import AccountMenu from "@/components/AccountMenu";
 import NavLink, { splitNavItems, TOOL_LINKS } from "@/components/NavLink";
 import SignalWave from "@/components/SignalWave";
 import DarkSiteFooter from "@/components/DarkSiteFooter";
@@ -53,8 +54,7 @@ function fileToBase64(file: File): Promise<{ data: string; mediaType: string }> 
 }
 
 export default function ProfilePage() {
-  const { user, account, isPaidPlan, signOutUser } = useAuth();
-  const signedIn = Boolean(user || account);
+  const { account, isPaidPlan } = useAuth();
 
   const [mode, setMode] = useState<Mode>("text");
   const [productName, setProductName] = useState("");
@@ -215,69 +215,21 @@ export default function ProfilePage() {
       <link rel="preload" as="fetch" crossOrigin="anonymous" href="/fonts/NotoSansJP-Bold.woff" />
       <header className="sticky top-0 z-30 border-b border-white/10 bg-black/70 backdrop-blur-xl">
         <input type="checkbox" id="mobile-nav-toggle" className="peer hidden" />
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-6">
           <Link href="/" aria-label="SellHub" className="inline-flex items-center gap-2.5 text-[16px] font-extrabold tracking-tight text-white">
             SellHub<span className="font-semibold">.ai</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <div className="hidden items-center gap-4 sm:flex">
-              {TOOL_LINKS.map((item) => (
-                <NavLink key={item.label} href={item.href} className="text-[14px] font-semibold text-white hover:text-[#5b9cff]">
+          <div className="flex items-center gap-3">
+            <nav aria-label="Primary" className="hidden items-center gap-0.5 sm:flex">
+              {[...TOOL_LINKS, ...navBeforeLogin, ...navAfterLogin].map((item) => (
+                <NavLink key={item.label + item.href} href={item.href} className="rounded-full px-3 py-2 text-[14px] font-semibold transition-colors text-[#c8c8c8] hover:bg-white/[0.07] hover:text-white">
                   {item.label}
                 </NavLink>
               ))}
-              {navBeforeLogin.map((item) => (
-                <NavLink key={item.label} href={item.href} className="text-[14px] font-semibold text-[#b4b4b4] hover:text-white">
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
-            <span
-              className="rounded-full px-3 py-1 text-[12px] font-bold"
-              style={
-                isPaidPlan
-                  ? { background: "linear-gradient(180deg,#5b9cff,#2f6fe0)", color: "#fff" }
-                  : { background: "rgba(91,156,255,0.15)", color: "#5b9cff" }
-              }
-            >
-              {isPaidPlan ? "Master" : "Free 플랜"}
-            </span>
-            {signedIn ? (
-              <>
-                {user?.photoURL ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full" />
-                ) : (
-                  <div
-                    title={account?.id}
-                    className="grid h-8 w-8 place-items-center rounded-full bg-[#5b9cff]/15 text-[13px] font-bold uppercase text-[#5b9cff]"
-                  >
-                    {account?.id.charAt(0) ?? ""}
-                  </div>
-                )}
-                {account && (
-                  <Link href="/mypage" className="hidden text-[13.5px] font-semibold text-white hover:text-[#5b9cff] sm:inline">
-                    마이페이지
-                  </Link>
-                )}
-                <button
-                  onClick={() => signOutUser()}
-                  className="hidden text-[13.5px] font-semibold text-[#9a9a9a] hover:text-white sm:inline"
-                >
-                  로그아웃
-                </button>
-              </>
-            ) : (
-              <Link href="/login" className="hidden text-[13.5px] font-semibold text-[#9a9a9a] hover:text-white sm:inline">
-                로그인 (선택)
-              </Link>
-            )}
-            <div className="hidden items-center gap-4 sm:flex">
-              {navAfterLogin.map((item) => (
-                <NavLink key={item.label} href={item.href} className="text-[14px] font-semibold text-[#b4b4b4] hover:text-white">
-                  {item.label}
-                </NavLink>
-              ))}
+            </nav>
+            <span aria-hidden className="hidden h-5 w-px bg-white/15 sm:block" />
+            <div className="hidden sm:block">
+              <AccountMenu theme="dark" myPage />
             </div>
             <label
               htmlFor="mobile-nav-toggle"
@@ -291,40 +243,12 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="hidden flex-col gap-1 border-t border-white/10 bg-black px-6 py-4 peer-checked:flex sm:hidden">
-          {TOOL_LINKS.map((item) => (
-            <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-bold text-white hover:bg-white/[0.08]">
+          {[...TOOL_LINKS, ...navBeforeLogin, ...navAfterLogin].map((item) => (
+            <NavLink key={item.label + item.href} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-white hover:bg-white/[0.08]">
               {item.label}
             </NavLink>
           ))}
-          {navBeforeLogin.map((item) => (
-            <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-[#b4b4b4] hover:bg-white/[0.08]">
-              {item.label}
-            </NavLink>
-          ))}
-          {navAfterLogin.map((item) => (
-            <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-[#b4b4b4] hover:bg-white/[0.08]">
-              {item.label}
-            </NavLink>
-          ))}
-          {signedIn ? (
-            <>
-              {account && (
-                <Link href="/mypage" className="rounded-[8px] px-2 py-2.5 text-[15px] font-bold text-white hover:bg-white/[0.08]">
-                  마이페이지
-                </Link>
-              )}
-              <button
-                onClick={() => signOutUser()}
-                className="rounded-[8px] px-2 py-2.5 text-left text-[15px] font-semibold text-[#9a9a9a] hover:bg-white/[0.08]"
-              >
-                로그아웃
-              </button>
-            </>
-          ) : (
-            <Link href="/login" className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-[#9a9a9a] hover:bg-white/[0.08]">
-              로그인 (선택)
-            </Link>
-          )}
+          <AccountMenu theme="dark" myPage mobile />
         </div>
       </header>
 

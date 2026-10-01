@@ -1,5 +1,5 @@
 import Link from "next/link";
-import AccountNavLink from "./AccountNavLink";
+import AccountMenu from "./AccountMenu";
 import { SEARCHING_HUB_LINK } from "./NavLink";
 import styles from "./DarkSite.module.css";
 
@@ -16,14 +16,16 @@ export default function DarkSiteHeader() {
         <Link href="/pricing" className={styles.pill}>
           요금제
         </Link>
-        <AccountNavLink className={styles.pill} />
         <a href={SEARCHING_HUB_LINK} target="_blank" rel="noopener noreferrer" className={styles.pill}>
           Searching Hub
         </a>
       </nav>
-      <Link href="/profile" className={styles.btn}>
-        무료로 시작
-      </Link>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <AccountMenu theme="dark" myPage />
+        <Link href="/profile" className={styles.btn}>
+          무료로 시작
+        </Link>
+      </div>
     </header>
   );
 }

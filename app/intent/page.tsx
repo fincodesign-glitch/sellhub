@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import AccountMenu from "@/components/AccountMenu";
 import NavLink, { splitNavItems, TOOL_LINKS } from "@/components/NavLink";
 import Logo from "@/components/Logo";
 import { SparkleMark, IconImage, IconRadar, IconTrend, IconMatch, IconDocument, type IconProps } from "@/components/Icons";
@@ -56,8 +57,7 @@ function fileToBase64(file: File): Promise<{ data: string; mediaType: string }> 
 }
 
 export default function IntentPage() {
-  const { user, account, isPaidPlan, signOutUser } = useAuth();
-  const signedIn = Boolean(user || account);
+  const { isPaidPlan } = useAuth();
 
   const [mode, setMode] = useState<Mode>("text");
   const [productName, setProductName] = useState("");
@@ -245,52 +245,20 @@ export default function IntentPage() {
       <link rel="preload" as="fetch" crossOrigin="anonymous" href="/fonts/NotoSansJP-Bold.woff" />
       <header className="sticky top-0 z-30 border-b border-line/70 bg-white/80 backdrop-blur-xl">
         <input type="checkbox" id="mobile-nav-toggle" className="peer hidden" />
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-6">
           <Logo brand="Searching Hub" href="/intentmate" icon={SparkleMark} />
-          <div className="flex items-center gap-4">
-            <div className="hidden items-center gap-4 sm:flex">
-              {TOOL_LINKS.map((item) => (
-                <NavLink key={item.label} href={item.href} className="text-[14px] font-semibold text-foreground hover:text-brand-dark">
+          <div className="flex items-center gap-3">
+            <nav aria-label="Primary" className="hidden items-center gap-0.5 sm:flex">
+              {[...TOOL_LINKS, ...navBeforeLogin].map((item) => (
+                <NavLink key={item.label + item.href} href={item.href} className="rounded-full px-3 py-2 text-[14px] font-semibold transition-colors text-ink2 hover:bg-brand-bg hover:text-brand-dark">
                   {item.label}
                 </NavLink>
               ))}
-              {navBeforeLogin.map((item) => (
-                <NavLink key={item.label} href={item.href} className="text-[14px] font-semibold text-ink2 hover:text-foreground">
-                  {item.label}
-                </NavLink>
-              ))}
+            </nav>
+            <span aria-hidden className="hidden h-5 w-px bg-line sm:block" />
+            <div className="hidden sm:block">
+              <AccountMenu theme="light" />
             </div>
-            <span
-              className={`rounded-full px-3 py-1 text-[12px] font-bold ${isPaidPlan ? "bg-brand text-white" : "bg-brand-bg text-brand-dark"}`}
-            >
-              {isPaidPlan ? "Master" : "Free 플랜"}
-            </span>
-            {signedIn ? (
-              <>
-                {user?.photoURL ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full" />
-                ) : (
-                  <div
-                    title={account?.id}
-                    className="grid h-8 w-8 place-items-center rounded-full bg-brand-bg text-[13px] font-bold uppercase text-brand-dark"
-                  >
-                    {account?.id.charAt(0) ?? ""}
-                  </div>
-                )}
-                <button
-                  onClick={() => signOutUser()}
-                  className="hidden text-[13.5px] font-semibold text-muted hover:text-foreground sm:inline"
-                >
-                  로그아웃
-                </button>
-              </>
-            ) : (
-              // Plain <a>: on Searching Hub /login redirects to SellHub's sign-in.
-              <a href="/login" className="hidden text-[13.5px] font-semibold text-muted hover:text-foreground sm:inline">
-                로그인 (선택)
-              </a>
-            )}
             <label
               htmlFor="mobile-nav-toggle"
               aria-label="메뉴 열기"
@@ -303,28 +271,12 @@ export default function IntentPage() {
           </div>
         </div>
         <div className="hidden flex-col gap-1 border-t border-line bg-white px-6 py-4 peer-checked:flex sm:hidden">
-          {TOOL_LINKS.map((item) => (
-            <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-bold text-foreground hover:bg-surface2">
+          {[...TOOL_LINKS, ...navBeforeLogin].map((item) => (
+            <NavLink key={item.label + item.href} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-foreground hover:bg-surface2">
               {item.label}
             </NavLink>
           ))}
-          {navBeforeLogin.map((item) => (
-            <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-ink2 hover:bg-surface2">
-              {item.label}
-            </NavLink>
-          ))}
-          {signedIn ? (
-            <button
-              onClick={() => signOutUser()}
-              className="rounded-[8px] px-2 py-2.5 text-left text-[15px] font-semibold text-muted hover:bg-surface2"
-            >
-              로그아웃
-            </button>
-          ) : (
-            <a href="/login" className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-muted hover:bg-surface2">
-              로그인 (선택)
-            </a>
-          )}
+          <AccountMenu theme="light" mobile />
         </div>
       </header>
 
