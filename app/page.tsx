@@ -1,5 +1,7 @@
 "use client";
 
+import AccountMenu from "@/components/AccountMenu";
+import { ExternalArrow } from "@/components/DarkSiteHeader";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import styles from "./page.module.css";
@@ -22,9 +24,9 @@ import styles from "./page.module.css";
  */
 
 const NAV_ITEMS = [
-  { label: "브랜드", href: "/brand", cls: styles.appearScale, d: "0.16s" },
-  { label: "요금제", href: "/pricing", cls: styles.appearSoft, d: "0.28s" },
-  { label: "로그인", href: "/login", cls: styles.appearScale, d: "0.40s" },
+  { label: "바이어 찾기", href: "/profile", cls: styles.appearScale, d: "0.16s" },
+  { label: "브랜드", href: "/brand", cls: styles.appearSoft, d: "0.28s" },
+  { label: "요금제", href: "/pricing", cls: styles.appearScale, d: "0.40s" },
   // Goes through the handoff route so a signed-in user arrives logged in.
   { label: "Searching Hub", href: "/api/auth/handoff?next=%2Fintentmate", cls: styles.appearSoft, d: "0.52s" },
 ];
@@ -277,14 +279,18 @@ export default function Home() {
                 style={{ ["--d" as string]: item.d }}
               >
                 {item.label}
+                {item.href.startsWith("/api/") && <ExternalArrow className={styles.pillArrow} />}
               </a>
             ))}
           </nav>
 
-          <div style={{ justifySelf: "end", display: "flex", alignItems: "center", gap: 10 }}>
+          <div className={styles.headerRight}>
+            <div className={`${styles.appear} ${styles.appearScale}`} style={{ ["--d" as string]: "0.3s" }}>
+              <AccountMenu theme="dark" myPage />
+            </div>
             <a
               href="/profile"
-              className={`${styles.btn} ${styles.btnSolid} ${styles.appear} ${styles.appearScale}`}
+              className={`${styles.btn} ${styles.btnSolid} ${styles.headerCta} ${styles.appear} ${styles.appearScale}`}
               style={{ ["--d" as string]: "0.34s" }}
             >
               무료로 시작

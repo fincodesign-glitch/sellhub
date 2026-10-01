@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import AccountMenu from "@/components/AccountMenu";
-import NavLink, { splitNavItems, TOOL_LINKS } from "@/components/NavLink";
+import DarkSiteHeader from "@/components/DarkSiteHeader";
 import SignalWave from "@/components/SignalWave";
 import DarkSiteFooter from "@/components/DarkSiteFooter";
 import AnalysisReportView, { Section } from "@/components/AnalysisReportView";
@@ -12,17 +11,6 @@ import { useAnalysis, type AnalysisPayload } from "@/lib/analysis-context";
 import { useAuth } from "@/lib/auth-context";
 import type { ReportMeta } from "@/lib/analysis-types";
 import styles from "@/components/DarkSite.module.css";
-
-// Kept local (not imported from lib/site-content) because that module also
-// exports server-only @vercel/blob calls that must not end up in the client bundle.
-interface NavItem {
-  label: string;
-  href: string;
-}
-const DEFAULT_NAV: NavItem[] = [
-  { label: "브랜드", href: "/brand" },
-  { label: "요금제", href: "/pricing" },
-];
 
 const MARKETS = ["일본", "미국", "동남아시아"];
 type Mode = "text" | "url" | "image";
@@ -81,18 +69,6 @@ export default function ProfilePage() {
   const [delegation, setDelegation] = useState<Delegation | null>(null);
   const [delegating, setDelegating] = useState(false);
   const [delegateError, setDelegateError] = useState<string | null>(null);
-  const [navItems, setNavItems] = useState<NavItem[]>(DEFAULT_NAV);
-  const { before: navBeforeLogin, after: navAfterLogin } = splitNavItems(navItems);
-
-  useEffect(() => {
-    fetch("/api/site-content")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { nav?: NavItem[] } | null) => {
-        if (data?.nav) setNavItems(data.nav);
-      })
-      .catch(() => {});
-  }, []);
-
   // Coming back to this page more than 3 minutes after a result finished clears it.
   useEffect(() => {
     expireStaleResult();
@@ -213,44 +189,7 @@ export default function ProfilePage() {
       <link rel="preload" as="fetch" crossOrigin="anonymous" href="/fonts/NotoSansKR-Bold.woff" />
       <link rel="preload" as="fetch" crossOrigin="anonymous" href="/fonts/NotoSansJP-Regular.woff" />
       <link rel="preload" as="fetch" crossOrigin="anonymous" href="/fonts/NotoSansJP-Bold.woff" />
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-black/70 backdrop-blur-xl">
-        <input type="checkbox" id="mobile-nav-toggle" className="peer hidden" />
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-6">
-          <Link href="/" aria-label="SellHub" className="inline-flex items-center gap-2.5 text-[16px] font-extrabold tracking-tight text-white">
-            SellHub<span className="font-semibold">.ai</span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <nav aria-label="Primary" className="hidden items-center gap-0.5 sm:flex">
-              {[...TOOL_LINKS, ...navBeforeLogin, ...navAfterLogin].map((item) => (
-                <NavLink key={item.label + item.href} href={item.href} className="rounded-full px-3 py-2 text-[14px] font-semibold transition-colors text-[#c8c8c8] hover:bg-white/[0.07] hover:text-white">
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-            <span aria-hidden className="hidden h-5 w-px bg-white/15 sm:block" />
-            <div className="hidden sm:block">
-              <AccountMenu theme="dark" myPage />
-            </div>
-            <label
-              htmlFor="mobile-nav-toggle"
-              aria-label="메뉴 열기"
-              className="grid h-9 w-9 cursor-pointer place-items-center rounded-[8px] text-[#b4b4b4] hover:bg-white/[0.08] sm:hidden"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </label>
-          </div>
-        </div>
-        <div className="hidden flex-col gap-1 border-t border-white/10 bg-black px-6 py-4 peer-checked:flex sm:hidden">
-          {[...TOOL_LINKS, ...navBeforeLogin, ...navAfterLogin].map((item) => (
-            <NavLink key={item.label + item.href} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-white hover:bg-white/[0.08]">
-              {item.label}
-            </NavLink>
-          ))}
-          <AccountMenu theme="dark" myPage mobile />
-        </div>
-      </header>
+      <DarkSiteHeader />
 
       <main className="mx-auto max-w-6xl px-6 py-12">
         <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3.5 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-[#5b9cff]">
