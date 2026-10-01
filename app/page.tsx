@@ -25,7 +25,8 @@ const NAV_ITEMS = [
   { label: "브랜드", href: "/brand", cls: styles.appearScale, d: "0.16s" },
   { label: "요금제", href: "/pricing", cls: styles.appearSoft, d: "0.28s" },
   { label: "로그인", href: "/login", cls: styles.appearScale, d: "0.40s" },
-  { label: "Searching Hub", href: "https://searchinghub.vercel.app", cls: styles.appearSoft, d: "0.52s" },
+  // Goes through the handoff route so a signed-in user arrives logged in.
+  { label: "Searching Hub", href: "/api/auth/handoff?next=%2Fintentmate", cls: styles.appearSoft, d: "0.52s" },
 ];
 
 const STATS = [
@@ -269,8 +270,8 @@ export default function Home() {
               <a
                 key={item.label}
                 href={item.href}
-                target={item.href.startsWith("http") ? "_blank" : undefined}
-                rel={item.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                target={item.href.startsWith("http") || item.href.startsWith("/api/") ? "_blank" : undefined}
+                rel={item.href.startsWith("http") || item.href.startsWith("/api/") ? "noopener noreferrer" : undefined}
                 onClick={() => setMenuOpen(false)}
                 className={`${styles.pill} ${styles.appear} ${item.cls}`}
                 style={{ ["--d" as string]: item.d }}

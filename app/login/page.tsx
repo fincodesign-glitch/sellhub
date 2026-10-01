@@ -33,9 +33,15 @@ export default function LoginPage() {
   const [googleBusy, setGoogleBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && (user || account)) {
-      router.replace("/profile");
+    if (loading || !(user || account)) return;
+    // `next` is set when the login started from Searching Hub (via
+    // /api/auth/handoff); it's a route handler, so it needs a full navigation.
+    const next = new URLSearchParams(window.location.search).get("next");
+    if (account && next && next.startsWith("/api/auth/handoff")) {
+      window.location.replace(next);
+      return;
     }
+    router.replace("/profile");
   }, [loading, user, account, router]);
 
   function switchTab(next: Tab) {

@@ -84,6 +84,45 @@ export function readSessionToken(token: string | undefined | null): SessionUser 
   }
 }
 
+// Single sign-on to Searching Hub (searchinghub.vercel.app). It is a separate
+// domain, so it can't read SellHub's cookie; instead SellHub hands over a
+// short-lived token signed with HANDOFF_SECRET (set to the same value on both
+// deployments), and Searching Hub turns it into its own session cookie.
+const HANDOFF_AUDIENCE = "searchinghub";
+const HANDOFF_TTL_MS = 60 * 1000;
+
+export function createHandoffToken(user: SessionUser): string | null {
+  const secret = process.env.HANDOFF_SECRET;
+  if (!secret) return null;
+  const body = Buffer.from(
+    JSON.stringify({ id: user.id, plan: user.plan, aud: HANDOFF_AUDIENCE, exp: Date.now() + HANDOFF_TTL_MS }),
+  ).toString("base64url");
+  return `${body}.${sign(body, secret)}`;
+}
+
+export function readHandoffToken(token: string | null): SessionUser | null {
+  const secret = process.env.HANDOFF_SECRET;
+  if (!token || !secret) return null;
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  const expected = Buffer.from(sign(body, secret));
+  const actual = Buffer.from(sig);
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null;
+  try {
+    const data = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as {
+      id?: unknown;
+      plan?: unknown;
+      aud?: unknown;
+      exp?: unknown;
+    };
+    if (data.aud !== HANDOFF_AUDIENCE || typeof data.id !== "string") return null;
+    if (typeof data.exp !== "number" || data.exp < Date.now()) return null;
+    return { id: data.id, plan: data.plan === "master" ? "master" : "free" };
+  } catch {
+    return null;
+  }
+}
+
 export function getSessionUser(request: NextRequest): SessionUser | null {
   return readSessionToken(request.cookies.get(USER_COOKIE)?.value);
 }

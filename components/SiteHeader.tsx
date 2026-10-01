@@ -1,5 +1,6 @@
 import Link from "next/link";
 import NavLink, { splitNavItems, TOOL_LINKS, type NavItemLike } from "@/components/NavLink";
+import HeaderAccountLink from "@/components/HeaderAccountLink";
 import Logo from "@/components/Logo";
 import type { ComponentType } from "react";
 
@@ -57,9 +58,7 @@ export default function SiteHeader({
               {item.label}
             </a>
           ))}
-          <Link href="/login" className="text-[14px] font-medium text-ink2 transition-colors hover:text-foreground">
-            로그인
-          </Link>
+          <HeaderAccountLink className="text-[14px] font-medium text-ink2 transition-colors hover:text-foreground" />
           {navAfterLogin.map((item) => (
             <NavLink
               key={item.label}
@@ -102,9 +101,7 @@ export default function SiteHeader({
             {item.label}
           </a>
         ))}
-        <Link href="/login" className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-ink2 hover:bg-surface2">
-          로그인
-        </Link>
+        <HeaderAccountLink mobile className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-ink2 hover:bg-surface2" />
         {navAfterLogin.map((item) => (
           <NavLink key={item.label} href={item.href} className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-ink2 hover:bg-surface2">
             {item.label}

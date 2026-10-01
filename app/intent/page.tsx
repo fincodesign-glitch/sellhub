@@ -56,7 +56,8 @@ function fileToBase64(file: File): Promise<{ data: string; mediaType: string }> 
 }
 
 export default function IntentPage() {
-  const { user, signOutUser } = useAuth();
+  const { user, account, isPaidPlan, signOutUser } = useAuth();
+  const signedIn = Boolean(user || account);
 
   const [mode, setMode] = useState<Mode>("text");
   const [productName, setProductName] = useState("");
@@ -89,10 +90,6 @@ export default function IntentPage() {
       })
       .catch(() => {});
   }, []);
-
-  // 아직 실제 결제/구독 연동이 없어서 모든 사용자를 Free 플랜으로 취급합니다.
-  // 유료 플랜 여부를 실제로 구분하려면 결제 시스템과 사용자별 플랜 저장이 필요합니다.
-  const isPaidPlan = false;
 
   const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -263,16 +260,23 @@ export default function IntentPage() {
                 </NavLink>
               ))}
             </div>
-            <span className="rounded-full bg-brand-bg px-3 py-1 text-[12px] font-bold text-brand-dark">
-              Free 플랜
+            <span
+              className={`rounded-full px-3 py-1 text-[12px] font-bold ${isPaidPlan ? "bg-brand text-white" : "bg-brand-bg text-brand-dark"}`}
+            >
+              {isPaidPlan ? "Master" : "Free 플랜"}
             </span>
-            {user ? (
+            {signedIn ? (
               <>
-                {user.photoURL ? (
+                {user?.photoURL ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full" />
                 ) : (
-                  <div className="h-8 w-8 rounded-full bg-brand-bg" />
+                  <div
+                    title={account?.id}
+                    className="grid h-8 w-8 place-items-center rounded-full bg-brand-bg text-[13px] font-bold uppercase text-brand-dark"
+                  >
+                    {account?.id.charAt(0) ?? ""}
+                  </div>
                 )}
                 <button
                   onClick={() => signOutUser()}
@@ -282,9 +286,10 @@ export default function IntentPage() {
                 </button>
               </>
             ) : (
-              <Link href="/login" className="hidden text-[13.5px] font-semibold text-muted hover:text-foreground sm:inline">
+              // Plain <a>: on Searching Hub /login redirects to SellHub's sign-in.
+              <a href="/login" className="hidden text-[13.5px] font-semibold text-muted hover:text-foreground sm:inline">
                 로그인 (선택)
-              </Link>
+              </a>
             )}
             <label
               htmlFor="mobile-nav-toggle"
@@ -308,7 +313,7 @@ export default function IntentPage() {
               {item.label}
             </NavLink>
           ))}
-          {user ? (
+          {signedIn ? (
             <button
               onClick={() => signOutUser()}
               className="rounded-[8px] px-2 py-2.5 text-left text-[15px] font-semibold text-muted hover:bg-surface2"
@@ -316,9 +321,9 @@ export default function IntentPage() {
               로그아웃
             </button>
           ) : (
-            <Link href="/login" className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-muted hover:bg-surface2">
+            <a href="/login" className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-muted hover:bg-surface2">
               로그인 (선택)
-            </Link>
+            </a>
           )}
         </div>
       </header>

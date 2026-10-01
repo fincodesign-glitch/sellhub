@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AccountNavLink from "./AccountNavLink";
+import { SEARCHING_HUB_LINK } from "./NavLink";
 import styles from "./DarkSite.module.css";
 
 export default function DarkSiteHeader() {
@@ -16,7 +17,7 @@ export default function DarkSiteHeader() {
           요금제
         </Link>
         <AccountNavLink className={styles.pill} />
-        <a href="https://searchinghub.vercel.app" target="_blank" rel="noopener noreferrer" className={styles.pill}>
+        <a href={SEARCHING_HUB_LINK} target="_blank" rel="noopener noreferrer" className={styles.pill}>
           Searching Hub
         </a>
       </nav>

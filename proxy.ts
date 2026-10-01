@@ -16,12 +16,18 @@ const SEARCHING_HUB_HOSTS = new Set([
 ]);
 
 const SEARCHING_HUB_ORIGIN = "https://searchinghub.vercel.app";
+const SELLHUB_ORIGIN = "https://www.sellhub.co.kr";
 
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   const { pathname } = request.nextUrl;
 
   if (SEARCHING_HUB_HOSTS.has(host)) {
+    // Accounts live on SellHub: sign in there and come back logged in
+    // (see app/api/auth/handoff). Already signed in on SellHub → straight back.
+    if (pathname === "/login") {
+      return NextResponse.redirect(`${SELLHUB_ORIGIN}/api/auth/handoff?login=1&next=%2Fintent`);
+    }
     if (pathname === "/") {
       return NextResponse.rewrite(new URL("/intentmate", request.url));
     }
@@ -42,5 +48,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/brand", "/intentmate", "/intent"],
+  matcher: ["/", "/brand", "/intentmate", "/intent", "/login"],
 };
