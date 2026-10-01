@@ -16,9 +16,9 @@ export default function DarkSiteHeader() {
           요금제
         </Link>
         <AccountNavLink className={styles.pill} />
-        <a href="https://searchinghub.vercel.app" target="_blank" rel="noopener noreferrer" className={styles.pill}>
+        <Link href="/intentmate" className={styles.pill}>
           Searching Hub
-        </a>
+        </Link>
       </nav>
       <Link href="/profile" className={styles.btn}>
         무료로 시작

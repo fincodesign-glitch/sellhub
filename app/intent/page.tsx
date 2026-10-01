@@ -6,9 +6,9 @@ import Logo from "@/components/Logo";
 import { SparkleMark, IconImage, IconRadar, IconTrend, IconMatch, IconDocument, type IconProps } from "@/components/Icons";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
+import { useIntentAnalysis, type AnalysisPayload } from "@/lib/analysis-context";
 import { useAuth } from "@/lib/auth-context";
-import type { IntentAnalysisResult, IntentBuyer, Relevance, ReportMeta } from "@/lib/analysis-types";
-import { warmPdfFonts } from "@/lib/pdf-worker-client";
+import type { IntentBuyer, Relevance, ReportMeta } from "@/lib/analysis-types";
 
 // Kept local (not imported from lib/site-content) because that module also
 // exports server-only @vercel/blob calls that must not end up in the client bundle.
@@ -56,7 +56,8 @@ function fileToBase64(file: File): Promise<{ data: string; mediaType: string }> 
 }
 
 export default function IntentPage() {
-  const { user, signOutUser } = useAuth();
+  const { user, account, isPaidPlan, signOutUser } = useAuth();
+  const signedIn = Boolean(user || account);
 
   const [mode, setMode] = useState<Mode>("text");
   const [productName, setProductName] = useState("");
@@ -67,13 +68,17 @@ export default function IntentPage() {
   const [imageError, setImageError] = useState<string | null>(null);
   const [market, setMarket] = useState(MARKETS[0]);
 
-  const [result, setResult] = useState<IntentAnalysisResult | null>(null);
-  const [resultMeta, setResultMeta] = useState<ReportMeta | null>(null);
-  const [progressLog, setProgressLog] = useState<string[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [status, setStatus] = useState<"idle" | "loading" | "streaming" | "done" | "error">(
-    "idle",
-  );
+  const {
+    status,
+    progressLog,
+    result,
+    meta: resultMeta,
+    error: errorMessage,
+    savedReportId,
+    startAnalysis,
+    expireStaleResult,
+  } = useIntentAnalysis();
+  const [preparing, setPreparing] = useState(false);
   const [savedBuyers, setSavedBuyers] = useState<Set<string>>(new Set());
   const [selectedActions, setSelectedActions] = useState<Set<number>>(new Set());
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
@@ -90,11 +95,11 @@ export default function IntentPage() {
       .catch(() => {});
   }, []);
 
-  // 아직 실제 결제/구독 연동이 없어서 모든 사용자를 Free 플랜으로 취급합니다.
-  // 유료 플랜 여부를 실제로 구분하려면 결제 시스템과 사용자별 플랜 저장이 필요합니다.
-  const isPaidPlan = false;
+  // Coming back to this page more than 3 minutes after a result finished clears it.
+  useEffect(() => {
+    expireStaleResult();
+  }, [expireStaleResult]);
 
-  const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -149,92 +154,28 @@ export default function IntentPage() {
     e.preventDefault();
     if (!isSubmittable()) return;
 
-    setResult(null);
-    setResultMeta(null);
-    setProgressLog([]);
-    setErrorMessage(null);
     setSavedBuyers(new Set());
     setSelectedActions(new Set());
     setShowUpgradePrompt(false);
-    setStatus("loading");
-    // Parse the CJK fonts in the PDF worker during the multi-minute analysis,
-    // so the download click later doesn't have to.
-    warmPdfFonts();
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
 
     const meta: ReportMeta = { mode, productName, keywords, market, productUrl };
-
-    try {
-      const payload: Record<string, string> = { mode, productName, keywords, market };
-      if (mode === "url") {
-        payload.productUrl = productUrl.trim();
-      }
-      if (mode === "image" && imageFile) {
+    const payload: AnalysisPayload = { mode, productName, keywords, market };
+    if (mode === "url") payload.productUrl = productUrl.trim();
+    if (mode === "image" && imageFile) {
+      setPreparing(true);
+      try {
         const { data, mediaType } = await fileToBase64(imageFile);
         payload.imageBase64 = data;
         payload.imageMediaType = mediaType;
-      }
-
-      const res = await fetch("/api/intent-analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      if (!res.ok || !res.body) {
-        setStatus("error");
-        const text = await res.text().catch(() => "");
-        setErrorMessage(text || "리포트 생성 요청에 실패했습니다.");
-        return;
-      }
-
-      setStatus("streaming");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const event = JSON.parse(line) as
-              | { type: "progress"; label: string }
-              | { type: "result"; data: IntentAnalysisResult }
-              | { type: "error"; message: string };
-
-            if (event.type === "progress") {
-              setProgressLog((prev) => [...prev.slice(-4), event.label]);
-            } else if (event.type === "result") {
-              setResult(event.data);
-              setResultMeta(meta);
-            } else if (event.type === "error") {
-              setErrorMessage(event.message);
-            }
-          } catch {
-            // ignore malformed line (shouldn't happen)
-          }
-        }
-      }
-
-      setStatus((prev) => (prev === "error" ? prev : "done"));
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        setStatus("error");
-        setErrorMessage("리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      } finally {
+        setPreparing(false);
       }
     }
+    // Runs in the app-wide analysis store, so it keeps going on other pages.
+    startAnalysis(payload, meta);
   }
 
-  const isBusy = status === "loading" || status === "streaming";
+  const isBusy = preparing || status === "running";
 
   return (
     <div data-brand="intent" className="min-h-screen bg-surface2">
@@ -263,16 +204,28 @@ export default function IntentPage() {
                 </NavLink>
               ))}
             </div>
-            <span className="rounded-full bg-brand-bg px-3 py-1 text-[12px] font-bold text-brand-dark">
-              Free 플랜
+            <span
+              className={`rounded-full px-3 py-1 text-[12px] font-bold ${isPaidPlan ? "bg-brand text-white" : "bg-brand-bg text-brand-dark"}`}
+            >
+              {isPaidPlan ? "Master" : "Free 플랜"}
             </span>
-            {user ? (
+            {signedIn ? (
               <>
-                {user.photoURL ? (
+                {user?.photoURL ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full" />
                 ) : (
-                  <div className="h-8 w-8 rounded-full bg-brand-bg" />
+                  <div
+                    title={account?.id}
+                    className="grid h-8 w-8 place-items-center rounded-full bg-brand-bg text-[13px] font-bold uppercase text-brand-dark"
+                  >
+                    {account?.id.charAt(0) ?? ""}
+                  </div>
+                )}
+                {account && (
+                  <Link href="/mypage" className="hidden text-[13.5px] font-semibold text-foreground hover:text-brand-dark sm:inline">
+                    마이페이지
+                  </Link>
                 )}
                 <button
                   onClick={() => signOutUser()}
@@ -308,13 +261,20 @@ export default function IntentPage() {
               {item.label}
             </NavLink>
           ))}
-          {user ? (
-            <button
-              onClick={() => signOutUser()}
-              className="rounded-[8px] px-2 py-2.5 text-left text-[15px] font-semibold text-muted hover:bg-surface2"
-            >
-              로그아웃
-            </button>
+          {signedIn ? (
+            <>
+              {account && (
+                <Link href="/mypage" className="rounded-[8px] px-2 py-2.5 text-[15px] font-bold text-foreground hover:bg-surface2">
+                  마이페이지
+                </Link>
+              )}
+              <button
+                onClick={() => signOutUser()}
+                className="rounded-[8px] px-2 py-2.5 text-left text-[15px] font-semibold text-muted hover:bg-surface2"
+              >
+                로그아웃
+              </button>
+            </>
           ) : (
             <Link href="/login" className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-muted hover:bg-surface2">
               로그인 (선택)
@@ -500,12 +460,31 @@ export default function IntentPage() {
           </div>
         )}
 
-        {result && resultMeta && (
+        {status === "done" && result && resultMeta && (
           <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-brand-line bg-brand-bg px-6 py-4">
-              <p className="text-[13.5px] font-bold text-brand-dark">
-                ✅ AI가 찾은 마케팅 전략 리포트가 준비됐습니다
-              </p>
+              <div>
+                <p className="text-[13.5px] font-bold text-brand-dark">
+                  ✅ AI가 찾은 마케팅 전략 리포트가 준비됐습니다
+                </p>
+                <p className="mt-1 text-[12.5px] font-semibold text-muted">
+                  {savedReportId ? (
+                    <>
+                      마이페이지에 저장됐어요 ·{" "}
+                      <Link href="/mypage" className="text-brand-dark hover:underline">
+                        마이페이지에서 보기
+                      </Link>
+                    </>
+                  ) : account ? null : (
+                    <>
+                      이 결과는 3분 동안만 유지돼요 ·{" "}
+                      <Link href="/login" className="text-brand-dark hover:underline">
+                        로그인하면 마이페이지에 저장돼요
+                      </Link>
+                    </>
+                  )}
+                </p>
+              </div>
               <IntentPdfDownloadButton result={result} meta={resultMeta} />
             </div>
 
@@ -536,9 +515,10 @@ export default function IntentPage() {
                       key={i}
                       className="flex flex-col gap-1.5 rounded-[12px] border border-line bg-surface2 px-4 py-3 sm:flex-row sm:items-start sm:gap-4"
                     >
-                      <div className="flex shrink-0 items-center gap-2 sm:w-40">
+                      <div className="flex min-w-0 shrink-0 items-start gap-2 sm:w-52">
                         <RelevanceBadge relevance={trend.relevance} />
-                        <span className="text-[14px] font-bold">{trend.keyword}</span>
+                        {/* Japanese keywords have no spaces; let them break anywhere instead of overflowing. */}
+                        <span className="min-w-0 text-[14px] font-bold [overflow-wrap:anywhere]">{trend.keyword}</span>
                       </div>
                       <p className="text-[13.5px] leading-[1.6] text-ink2">{trend.evidence}</p>
                     </div>

@@ -3,31 +3,36 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { IconDocument, IconImage, IconMatch, IconRadar, IconTrend, type IconProps } from "@/components/Icons";
-import type { AnalysisResult, Buyer, Relevance, ReportMeta } from "@/lib/analysis-types";
+import type { AnalysisResult, Buyer, IntentAnalysisResult, IntentBuyer, Relevance, ReportMeta } from "@/lib/analysis-types";
 
-// The SellHub analysis result, shared by /profile (fresh results, with the
-// interactive action plan) and /mypage (saved reports, read-only action plan).
+// An analysis result in the dark SellHub style, shared by /profile (fresh
+// results, with the interactive action plan) and /mypage (saved SellHub and
+// Searching Hub reports, read-only action plan).
 
-const PdfDownloadButton = dynamic(() => import("@/components/PdfDownloadButton"), {
+const pdfLoading = () => (
+  <span
+    className="inline-flex items-center gap-2 rounded-[10px] px-5 py-2.5 text-[13.5px] font-bold text-white opacity-60"
+    style={{ background: "linear-gradient(180deg,#5b9cff,#2f6fe0)" }}
+  >
+    PDF 준비 중...
+  </span>
+);
+const PdfDownloadButton = dynamic(() => import("@/components/PdfDownloadButton"), { ssr: false, loading: pdfLoading });
+const IntentPdfDownloadButton = dynamic(() => import("@/components/IntentPdfDownloadButton"), {
   ssr: false,
-  loading: () => (
-    <span
-      className="inline-flex items-center gap-2 rounded-[10px] px-5 py-2.5 text-[13.5px] font-bold text-white opacity-60"
-      style={{ background: "linear-gradient(180deg,#5b9cff,#2f6fe0)" }}
-    >
-      PDF 준비 중...
-    </span>
-  ),
+  loading: pdfLoading,
 });
 
 export default function AnalysisReportView({
+  tool = "sellhub",
   result,
   meta,
   headline,
   note,
   actionPlan,
 }: {
-  result: AnalysisResult;
+  tool?: "sellhub" | "intent";
+  result: AnalysisResult | IntentAnalysisResult;
   meta: ReportMeta;
   headline: string;
   /** Extra line under the headline, e.g. where the result is saved. */
@@ -45,7 +50,11 @@ export default function AnalysisReportView({
           <p className="text-[13.5px] font-bold text-[#5b9cff]">{headline}</p>
           {note && <p className="mt-1 text-[12.5px] font-semibold text-[#9a9a9a]">{note}</p>}
         </div>
-        <PdfDownloadButton result={result} meta={meta} />
+        {tool === "intent" ? (
+          <IntentPdfDownloadButton result={result as IntentAnalysisResult} meta={meta} />
+        ) : (
+          <PdfDownloadButton result={result as AnalysisResult} meta={meta} />
+        )}
       </div>
 
       {result.productSummary && (
@@ -165,12 +174,15 @@ function RelevanceBadge({ relevance }: { relevance: Relevance }) {
   );
 }
 
-function BuyerCard({ buyer }: { buyer: Buyer }) {
+function BuyerCard({ buyer }: { buyer: Buyer | IntentBuyer }) {
+  // Searching Hub buyers come without a proposal email.
+  const email = "outreachEmailSubject" in buyer ? buyer : null;
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 
   async function copyEmail() {
-    const text = `Subject: ${buyer.outreachEmailSubject}\n\n${buyer.outreachEmailBody}`;
+    if (!email) return;
+    const text = `Subject: ${email.outreachEmailSubject}\n\n${email.outreachEmailBody}`;
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -201,23 +213,30 @@ function BuyerCard({ buyer }: { buyer: Buyer }) {
         ))}
       </div>
 
-      <div className="mb-4 flex-1 rounded-[16px] border border-white/12 p-4" style={{ background: "rgba(91,156,255,0.06)" }}>
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#5b9cff]">제안 메일 초안 (영문)</span>
-          <button
-            type="button"
-            onClick={copyEmail}
-            className="shrink-0 rounded-full bg-white/[0.08] px-3 py-1 text-[11.5px] font-bold text-[#5b9cff] hover:bg-white/[0.14]"
-          >
-            {copied ? "복사됨!" : "복사"}
-          </button>
+      {email ? (
+        <div className="mb-4 flex-1 rounded-[16px] border border-white/12 p-4" style={{ background: "rgba(91,156,255,0.06)" }}>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#5b9cff]">제안 메일 초안 (영문)</span>
+            <button
+              type="button"
+              onClick={copyEmail}
+              className="shrink-0 rounded-full bg-white/[0.08] px-3 py-1 text-[11.5px] font-bold text-[#5b9cff] hover:bg-white/[0.14]"
+            >
+              {copied ? "복사됨!" : "복사"}
+            </button>
+          </div>
+          <p className="mb-2 text-[13px] font-bold text-white">{email.outreachEmailSubject}</p>
+          <p className="whitespace-pre-line text-[12.5px] leading-[1.65] text-[#b4b4b4]">{email.outreachEmailBody}</p>
+          <p className="mt-3 border-t border-white/12 pt-2.5 text-[12px] leading-[1.5] text-[#5b9cff]">
+            💡 {email.emailCoachingNote}
+          </p>
         </div>
-        <p className="mb-2 text-[13px] font-bold text-white">{buyer.outreachEmailSubject}</p>
-        <p className="whitespace-pre-line text-[12.5px] leading-[1.65] text-[#b4b4b4]">{buyer.outreachEmailBody}</p>
-        <p className="mt-3 border-t border-white/12 pt-2.5 text-[12px] leading-[1.5] text-[#5b9cff]">
-          💡 {buyer.emailCoachingNote}
+      ) : (
+        <p className="mb-4 flex-1 text-[12.5px] leading-[1.6] text-[#b4b4b4]">
+          <span className="font-bold text-[#5b9cff]">접근 방법 · </span>
+          {buyer.suggestedApproach}
         </p>
-      </div>
+      )}
 
       <div className="mb-4 flex flex-col gap-1.5 text-[12.5px]">
         {buyer.website && (

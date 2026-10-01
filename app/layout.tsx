@@ -51,7 +51,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-white text-slate-900">
         <AuthProvider>
-          <AnalysisProvider>{children}</AnalysisProvider>
+          <AnalysisProvider tool="sellhub">
+            <AnalysisProvider tool="intent">{children}</AnalysisProvider>
+          </AnalysisProvider>
         </AuthProvider>
       </body>
     </html>

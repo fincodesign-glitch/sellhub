@@ -6,12 +6,12 @@ export interface NavItemLike {
 }
 
 /**
- * 두 개의 독립된 사이트 진입점. SellHub와 Searching Hub(구 IntentMate)는 이제
- * 서로 다른 도메인의 별도 사이트라, 절대 URL로 고정해 관리자 콘텐츠와 무관하게 유지한다.
+ * 두 서비스 진입점. Searching Hub(구 IntentMate)도 sellhub.co.kr 안의 페이지
+ * (/intentmate)로 서비스하므로, 다른 도메인으로 넘어가지 않는 내부 경로를 쓴다.
  */
 export const TOOL_LINKS: NavItemLike[] = [
-  { label: "SellHub", href: "https://sellhub.co.kr" },
-  { label: "Searching Hub", href: "https://searchinghub.vercel.app" },
+  { label: "SellHub", href: "/" },
+  { label: "Searching Hub", href: "/intentmate" },
 ];
 
 // "브랜드"/"소개서"는 로그인 링크 오른쪽에 나오도록, 나머지 메뉴는 로그인 왼쪽에 나오도록 나눈다.
