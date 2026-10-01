@@ -15,17 +15,17 @@ export default function DarkSiteHeader() {
         SellHub<span className={styles.logoSuffix}>.ai</span>
       </Link>
       <nav className={styles.nav} aria-label="Primary">
-        {NAV_ITEMS.map((item) => (
-          <a
-            key={item.label}
-            href={item.href}
-            target={item.href.startsWith("http") ? "_blank" : undefined}
-            rel={item.href.startsWith("http") ? "noopener noreferrer" : undefined}
-            className={styles.pill}
-          >
-            {item.label}
-          </a>
-        ))}
+        {NAV_ITEMS.map((item) =>
+          item.href.startsWith("http") ? (
+            <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" className={styles.pill}>
+              {item.label}
+            </a>
+          ) : (
+            <Link key={item.label} href={item.href} className={styles.pill}>
+              {item.label}
+            </Link>
+          ),
+        )}
       </nav>
       <Link href="/profile" className={styles.btn}>
         무료로 시작

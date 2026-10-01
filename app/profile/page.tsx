@@ -4,12 +4,12 @@ import Link from "next/link";
 import NavLink, { splitNavItems, TOOL_LINKS } from "@/components/NavLink";
 import SignalWave from "@/components/SignalWave";
 import DarkSiteFooter from "@/components/DarkSiteFooter";
-import { IconImage, IconRadar, IconTrend, IconMatch, IconDocument, type IconProps } from "@/components/Icons";
-import dynamic from "next/dynamic";
+import AnalysisReportView, { Section } from "@/components/AnalysisReportView";
+import { IconDocument } from "@/components/Icons";
 import { useEffect, useRef, useState } from "react";
+import { useAnalysis, type AnalysisPayload } from "@/lib/analysis-context";
 import { useAuth } from "@/lib/auth-context";
-import type { AnalysisResult, Buyer, Relevance, ReportMeta } from "@/lib/analysis-types";
-import { warmPdfFonts } from "@/lib/pdf-worker-client";
+import type { ReportMeta } from "@/lib/analysis-types";
 import styles from "@/components/DarkSite.module.css";
 
 // Kept local (not imported from lib/site-content) because that module also
@@ -22,18 +22,6 @@ const DEFAULT_NAV: NavItem[] = [
   { label: "브랜드", href: "/brand" },
   { label: "요금제", href: "/pricing" },
 ];
-
-const PdfDownloadButton = dynamic(() => import("@/components/PdfDownloadButton"), {
-  ssr: false,
-  loading: () => (
-    <span
-      className="inline-flex items-center gap-2 rounded-[10px] px-5 py-2.5 text-[13.5px] font-bold text-white opacity-60"
-      style={{ background: "linear-gradient(180deg,#5b9cff,#2f6fe0)" }}
-    >
-      PDF 준비 중...
-    </span>
-  ),
-});
 
 const MARKETS = ["일본", "미국", "동남아시아"];
 type Mode = "text" | "url" | "image";
@@ -77,14 +65,17 @@ export default function ProfilePage() {
   const [imageError, setImageError] = useState<string | null>(null);
   const [market, setMarket] = useState(MARKETS[0]);
 
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [resultMeta, setResultMeta] = useState<ReportMeta | null>(null);
-  const [progressLog, setProgressLog] = useState<string[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [status, setStatus] = useState<"idle" | "loading" | "streaming" | "done" | "error">(
-    "idle",
-  );
-  const [savedBuyers, setSavedBuyers] = useState<Set<string>>(new Set());
+  const {
+    status,
+    progressLog,
+    result,
+    meta: resultMeta,
+    error: errorMessage,
+    savedReportId,
+    startAnalysis,
+    expireStaleResult,
+  } = useAnalysis();
+  const [preparing, setPreparing] = useState(false);
   const [selectedActions, setSelectedActions] = useState<Set<number>>(new Set());
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [delegation, setDelegation] = useState<Delegation | null>(null);
@@ -102,7 +93,11 @@ export default function ProfilePage() {
       .catch(() => {});
   }, []);
 
-  const abortRef = useRef<AbortController | null>(null);
+  // Coming back to this page more than 3 minutes after a result finished clears it.
+  useEffect(() => {
+    expireStaleResult();
+  }, [expireStaleResult]);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -129,15 +124,6 @@ export default function ProfilePage() {
     if (mode === "text") return Boolean(productName.trim() || keywords.trim());
     if (mode === "url") return Boolean(productUrl.trim());
     return Boolean(imageFile);
-  }
-
-  function toggleSaved(key: string) {
-    setSavedBuyers((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
   }
 
   function handleSelectAction(index: number) {
@@ -193,103 +179,29 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!isSubmittable()) return;
 
-    setResult(null);
-    setResultMeta(null);
-    setProgressLog([]);
-    setErrorMessage(null);
-    setSavedBuyers(new Set());
     setSelectedActions(new Set());
     setShowUpgradePrompt(false);
     setDelegation(null);
     setDelegateError(null);
-    setStatus("loading");
-    // Parse the CJK fonts in the PDF worker during the multi-minute analysis,
-    // so the download click later doesn't have to.
-    warmPdfFonts();
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
 
     const meta: ReportMeta = { mode, productName, keywords, market, productUrl };
-
-    try {
-      const payload: Record<string, string> = { mode, productName, keywords, market };
-      if (mode === "url") {
-        payload.productUrl = productUrl.trim();
-      }
-      if (mode === "image" && imageFile) {
+    const payload: AnalysisPayload = { mode, productName, keywords, market };
+    if (mode === "url") payload.productUrl = productUrl.trim();
+    if (mode === "image" && imageFile) {
+      setPreparing(true);
+      try {
         const { data, mediaType } = await fileToBase64(imageFile);
         payload.imageBase64 = data;
         payload.imageMediaType = mediaType;
-      }
-
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      if (!res.ok || !res.body) {
-        setStatus("error");
-        const text = await res.text().catch(() => "");
-        setErrorMessage(text || "리포트 생성 요청에 실패했습니다.");
-        return;
-      }
-
-      setStatus("streaming");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let sawFinalEvent = false;
-
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const event = JSON.parse(line) as
-              | { type: "progress"; label: string }
-              | { type: "result"; data: AnalysisResult }
-              | { type: "error"; message: string };
-
-            if (event.type === "progress") {
-              setProgressLog((prev) => [...prev.slice(-4), event.label]);
-            } else if (event.type === "result") {
-              sawFinalEvent = true;
-              setResult(event.data);
-              setResultMeta(meta);
-            } else if (event.type === "error") {
-              sawFinalEvent = true;
-              setErrorMessage(event.message);
-            }
-          } catch {
-            // ignore malformed line (shouldn't happen)
-          }
-        }
-      }
-
-      if (!sawFinalEvent) {
-        setStatus("error");
-        setErrorMessage("리포트 생성이 중간에 끊겼습니다. 잠시 후 다시 시도해주세요.");
-        return;
-      }
-
-      setStatus((prev) => (prev === "error" ? prev : "done"));
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        setStatus("error");
-        setErrorMessage("리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      } finally {
+        setPreparing(false);
       }
     }
+    // Runs in the app-wide analysis store, so it keeps going on other pages.
+    startAnalysis(payload, meta);
   }
 
-  const isBusy = status === "loading" || status === "streaming";
+  const isBusy = preparing || status === "running";
 
   return (
     <div className={styles.wrap}>
@@ -343,6 +255,11 @@ export default function ProfilePage() {
                     {account?.id.charAt(0) ?? ""}
                   </div>
                 )}
+                {account && (
+                  <Link href="/mypage" className="hidden text-[13.5px] font-semibold text-white hover:text-[#5b9cff] sm:inline">
+                    마이페이지
+                  </Link>
+                )}
                 <button
                   onClick={() => signOutUser()}
                   className="hidden text-[13.5px] font-semibold text-[#9a9a9a] hover:text-white sm:inline"
@@ -390,12 +307,19 @@ export default function ProfilePage() {
             </NavLink>
           ))}
           {signedIn ? (
-            <button
-              onClick={() => signOutUser()}
-              className="rounded-[8px] px-2 py-2.5 text-left text-[15px] font-semibold text-[#9a9a9a] hover:bg-white/[0.08]"
-            >
-              로그아웃
-            </button>
+            <>
+              {account && (
+                <Link href="/mypage" className="rounded-[8px] px-2 py-2.5 text-[15px] font-bold text-white hover:bg-white/[0.08]">
+                  마이페이지
+                </Link>
+              )}
+              <button
+                onClick={() => signOutUser()}
+                className="rounded-[8px] px-2 py-2.5 text-left text-[15px] font-semibold text-[#9a9a9a] hover:bg-white/[0.08]"
+              >
+                로그아웃
+              </button>
+            </>
           ) : (
             <Link href="/login" className="rounded-[8px] px-2 py-2.5 text-[15px] font-semibold text-[#9a9a9a] hover:bg-white/[0.08]">
               로그인 (선택)
@@ -588,72 +512,29 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {result && resultMeta && (
-          <div className="flex flex-col gap-6">
-            <div
-              className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-white/12 px-6 py-4"
-              style={{ background: "rgba(91,156,255,0.08)" }}
-            >
-              <p className="text-[13.5px] font-bold text-[#5b9cff]">
-                ✅ 바이어 후보와 제안 메일이 준비됐습니다
-              </p>
-              <PdfDownloadButton result={result} meta={resultMeta} />
-            </div>
-
-            {result.productSummary && (
-              <Section icon={IconImage} title="제품 분석">
-                <p className="text-[14px] leading-[1.7] text-[#b4b4b4]">{result.productSummary}</p>
-              </Section>
-            )}
-
-            {result.marketInsight.length > 0 && (
-              <Section icon={IconRadar} title="시장 인사이트 리포트">
-                <ul className="flex flex-col gap-2.5">
-                  {result.marketInsight.map((point, i) => (
-                    <li key={i} className="flex gap-2.5 text-[14px] leading-[1.65] text-[#b4b4b4]">
-                      <span className="mt-0.5 shrink-0 text-[#5b9cff]">●</span>
-                      {point}
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-
-            {result.trends.length > 0 && (
-              <Section icon={IconTrend} title="트렌드 & 키워드 리포트">
-                <div className="flex flex-col gap-3">
-                  {result.trends.map((trend, i) => (
-                    <div
-                      key={i}
-                      className="flex flex-col gap-1.5 rounded-[12px] border border-white/10 bg-white/[0.03] px-4 py-3 sm:flex-row sm:items-start sm:gap-4"
-                    >
-                      <div className="flex shrink-0 items-center gap-2 sm:w-40">
-                        <RelevanceBadge relevance={trend.relevance} />
-                        <span className="text-[14px] font-bold text-white">{trend.keyword}</span>
-                      </div>
-                      <p className="text-[13.5px] leading-[1.6] text-[#b4b4b4]">{trend.evidence}</p>
-                    </div>
-                  ))}
-                </div>
-              </Section>
-            )}
-
-            {result.buyers.length > 0 && (
-              <Section icon={IconMatch} title={`바이어 후보 & 제안 메일 ${result.buyers.length}곳`}>
-                <div className="grid gap-5 lg:grid-cols-2">
-                  {result.buyers.map((buyer, i) => (
-                    <BuyerCard
-                      key={`${buyer.nameLocal}-${i}`}
-                      buyer={buyer}
-                      saved={savedBuyers.has(buyer.nameLocal)}
-                      onToggleSave={() => toggleSaved(buyer.nameLocal)}
-                    />
-                  ))}
-                </div>
-              </Section>
-            )}
-
-            {result.recommendedActions.length > 0 && (
+        {status === "done" && result && resultMeta && (
+          <AnalysisReportView
+            result={result}
+            meta={resultMeta}
+            headline="✅ 바이어 후보와 제안 메일이 준비됐습니다"
+            note={
+              savedReportId ? (
+                <>
+                  마이페이지에 저장됐어요 ·{" "}
+                  <Link href="/mypage" className="text-[#5b9cff] hover:underline">
+                    마이페이지에서 보기
+                  </Link>
+                </>
+              ) : account ? null : (
+                <>
+                  이 결과는 3분 동안만 유지돼요 ·{" "}
+                  <Link href="/login" className="text-[#5b9cff] hover:underline">
+                    로그인하면 마이페이지에 저장돼요
+                  </Link>
+                </>
+              )
+            }
+            actionPlan={
               <Section icon={IconDocument} title="추천 실행 계획">
                 {delegation ? (
                   <DelegationReceipt delegation={delegation} onAddMore={() => setDelegation(null)} />
@@ -723,162 +604,12 @@ export default function ProfilePage() {
                 </>
                 )}
               </Section>
-            )}
-          </div>
+            }
+          />
         )}
       </main>
 
       <DarkSiteFooter />
-    </div>
-  );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: (props: IconProps) => React.ReactElement;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      className="rounded-[20px] border border-white/10 p-7"
-      style={{ background: "linear-gradient(160deg, rgba(255,255,255,0.03), rgba(255,255,255,0) 60%)" }}
-    >
-      <h2 className="mb-5 flex items-center gap-2.5 text-[17px] font-extrabold tracking-tight text-white">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#5b9cff]/15 text-[#5b9cff]">
-          <Icon className="h-4 w-4" />
-        </span>
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function RelevanceBadge({ relevance }: { relevance: Relevance }) {
-  const relevanceStyles: Record<Relevance, string> = {
-    높음: "text-white",
-    중간: "text-[#5b9cff]",
-    낮음: "text-[#9a9a9a] border border-white/15",
-  };
-  const relevanceBg: Record<Relevance, React.CSSProperties | undefined> = {
-    높음: { background: "linear-gradient(180deg,#5b9cff,#2f6fe0)" },
-    중간: { background: "rgba(91,156,255,0.15)" },
-    낮음: { background: "rgba(255,255,255,0.04)" },
-  };
-  return (
-    <span
-      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ${relevanceStyles[relevance]}`}
-      style={relevanceBg[relevance]}
-    >
-      {relevance}
-    </span>
-  );
-}
-
-function BuyerCard({
-  buyer,
-  saved,
-  onToggleSave,
-}: {
-  buyer: Buyer;
-  saved: boolean;
-  onToggleSave: () => void;
-}) {
-  const [copied, setCopied] = useState(false);
-
-  async function copyEmail() {
-    const text = `Subject: ${buyer.outreachEmailSubject}\n\n${buyer.outreachEmailBody}`;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // 클립보드 권한이 없는 브라우저 등 — 조용히 무시, 사용자는 직접 드래그해서 복사할 수 있음
-    }
-  }
-
-  return (
-    <div
-      className="flex flex-col rounded-[20px] border border-white/10 p-5 transition-colors hover:border-white/20"
-      style={{ background: "linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0) 60%)" }}
-    >
-      <h3 className="mb-1 text-[16px] font-extrabold leading-snug tracking-tight text-white">
-        {buyer.nameLocal}
-        {buyer.nameEn && <span className="font-semibold text-[#b4b4b4]"> ({buyer.nameEn})</span>}
-      </h3>
-      <p className="mb-3 text-[12.5px] font-semibold text-[#9a9a9a]">
-        {buyer.country} · {buyer.buyerType}
-      </p>
-
-      <div className="mb-4 flex flex-col gap-2">
-        {buyer.reasons.slice(0, 2).map((reason, i) => (
-          <p
-            key={i}
-            className="rounded-[10px] bg-white/[0.04] px-3 py-2.5 text-[12.5px] leading-[1.55] text-[#b4b4b4]"
-          >
-            {reason}
-          </p>
-        ))}
-      </div>
-
-      <div
-        className="mb-4 flex-1 rounded-[16px] border border-white/12 p-4"
-        style={{ background: "rgba(91,156,255,0.06)" }}
-      >
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#5b9cff]">
-            제안 메일 초안 (영문)
-          </span>
-          <button
-            type="button"
-            onClick={copyEmail}
-            className="shrink-0 rounded-full bg-white/[0.08] px-3 py-1 text-[11.5px] font-bold text-[#5b9cff] hover:bg-white/[0.14]"
-          >
-            {copied ? "복사됨!" : "복사"}
-          </button>
-        </div>
-        <p className="mb-2 text-[13px] font-bold text-white">{buyer.outreachEmailSubject}</p>
-        <p className="whitespace-pre-line text-[12.5px] leading-[1.65] text-[#b4b4b4]">
-          {buyer.outreachEmailBody}
-        </p>
-        <p className="mt-3 border-t border-white/12 pt-2.5 text-[12px] leading-[1.5] text-[#5b9cff]">
-          💡 {buyer.emailCoachingNote}
-        </p>
-      </div>
-
-      <div className="mb-4 flex flex-col gap-1.5 text-[12.5px]">
-        {buyer.website && (
-          <a
-            href={buyer.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="truncate font-semibold text-[#5b9cff] hover:underline"
-          >
-            {buyer.website.replace(/^https?:\/\//, "")} ↗
-          </a>
-        )}
-        <span className={buyer.contactKnown ? "font-semibold text-[#5b9cff]" : "text-[#9a9a9a]"}>
-          {buyer.contactKnown ? "연락처 확인됨" : "연락처 미확인"}
-        </span>
-        {buyer.sourceNote && <span className="text-[#9a9a9a]">출처: {buyer.sourceNote}</span>}
-      </div>
-
-      <button
-        type="button"
-        onClick={onToggleSave}
-        className="rounded-full px-4 py-2.5 text-[13.5px] font-bold transition"
-        style={
-          saved
-            ? { background: "rgba(91,156,255,0.15)", color: "#5b9cff" }
-            : { background: "linear-gradient(180deg,#5b9cff,#2f6fe0)", color: "#fff" }
-        }
-      >
-        {saved ? "✓ 내 목록에 저장됨" : "내 목록에 추가"}
-      </button>
     </div>
   );
 }

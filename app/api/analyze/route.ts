@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages";
-import type { NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
+import { newId, saveJobOutcome, saveReport } from "@/lib/analysis-jobs";
+import type { AnalysisResult, ReportMeta } from "@/lib/analysis-types";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getSessionUser } from "@/lib/user-auth";
 
@@ -159,14 +161,18 @@ function reportSchemaFor(mode: InputMode) {
   };
 }
 
-function sendLine(controller: ReadableStreamDefaultController<Uint8Array>, encoder: TextEncoder, obj: unknown) {
-  controller.enqueue(encoder.encode(`${JSON.stringify(obj)}\n`));
-}
+type FinalEvent = { type: "result"; data: AnalysisResult } | { type: "error"; message: string };
+type StreamEvent =
+  | FinalEvent
+  | { type: "job"; jobId: string }
+  | { type: "progress"; label: string }
+  | { type: "saved"; reportId: string };
 
 export async function POST(request: NextRequest) {
   const clientIp = getClientIp(request);
+  const sessionUser = getSessionUser(request);
   // Master skips the per-IP cap; the overall hourly cap still protects API spend.
-  const rateLimit = checkRateLimit(clientIp, { skipPerIp: getSessionUser(request)?.plan === "master" });
+  const rateLimit = checkRateLimit(clientIp, { skipPerIp: sessionUser?.plan === "master" });
   if (!rateLimit.allowed) {
     return new Response(
       `요청이 너무 많습니다. ${rateLimit.retryAfterMinutes}분 후 다시 시도해주세요.`,
@@ -274,10 +280,70 @@ ${productName ? `참고 제품/브랜드명: ${productName}\n` : ""}${keywords ?
 
   content.push({ type: "text", text: instructionText });
 
+  const meta: ReportMeta = { mode, productName, keywords, market, productUrl };
+  const jobId = newId();
   const encoder = new TextEncoder();
 
+  // The analysis runs as a job that is not tied to this response: if the browser
+  // refreshes or leaves, `after()` keeps the function alive until the job is done
+  // and its outcome is saved, so the browser can fetch it later by jobId.
+  let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+  const emit = (event: StreamEvent) => {
+    if (!streamController) return;
+    try {
+      streamController.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+    } catch {
+      streamController = null;
+    }
+  };
+
+  const job = (async () => {
+    const final = await runAnalysis(emit);
+    emit(final);
+    const completedAt = new Date().toISOString();
+    try {
+      await saveJobOutcome(
+        jobId,
+        final.type === "result"
+          ? { status: "done", completedAt, result: final.data }
+          : { status: "error", completedAt, message: final.message },
+      );
+      if (final.type === "result" && sessionUser) {
+        const reportId = newId();
+        await saveReport(sessionUser.id, { id: reportId, createdAt: completedAt, meta, result: final.data });
+        emit({ type: "saved", reportId });
+      }
+    } catch (err) {
+      console.error("[/api/analyze] could not persist job outcome", err);
+    }
+  })();
+
   const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
+    start(controller) {
+      streamController = controller;
+      emit({ type: "job", jobId });
+      job.finally(() => {
+        try {
+          streamController?.close();
+        } catch {}
+        streamController = null;
+      });
+    },
+    cancel() {
+      streamController = null;
+    },
+  });
+
+  after(() => job);
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache",
+    },
+  });
+
+  async function runAnalysis(emit: (event: StreamEvent) => void): Promise<FinalEvent> {
       // The platform kills the function at maxDuration with no final line, which
       // leaves the client with neither a result nor an error. Stop a bit earlier
       // ourselves so the user gets an explicit timeout message instead.
@@ -308,12 +374,12 @@ ${productName ? `참고 제품/브랜드명: ${productName}\n` : ""}${keywords ?
               const query = String((block.input as { query?: string })?.query ?? "").slice(0, 80);
               if (query && !seenQueries.has(query)) {
                 seenQueries.add(query);
-                sendLine(controller, encoder, { type: "progress", label: `🔎 웹 검색 중: "${query}"` });
+                emit({ type: "progress", label: `🔎 웹 검색 중: "${query}"` });
               }
             } else if (block.name === "web_fetch") {
               const url = String((block.input as { url?: string })?.url ?? "").slice(0, 100);
               if (url) {
-                sendLine(controller, encoder, { type: "progress", label: `📄 페이지 확인 중: ${url}` });
+                emit({ type: "progress", label: `📄 페이지 확인 중: ${url}` });
               }
             }
           }
@@ -322,64 +388,48 @@ ${productName ? `참고 제품/브랜드명: ${productName}\n` : ""}${keywords ?
         const finalMessage = await claudeStream.finalMessage();
 
         if (finalMessage.stop_reason === "refusal") {
-          sendLine(controller, encoder, {
+          return {
             type: "error",
             message: "안전 정책으로 인해 리포트 생성이 거부되었습니다. 다른 입력으로 다시 시도해주세요.",
-          });
-          return;
+          };
         }
 
         if (finalMessage.stop_reason === "max_tokens") {
           console.error("[/api/analyze] truncated at max_tokens", finalMessage.usage);
-          sendLine(controller, encoder, {
+          return {
             type: "error",
             message: "리포트가 완성되기 전에 응답 길이 제한에 도달했습니다. 다시 시도해주세요.",
-          });
-          return;
+          };
         }
 
-        sendLine(controller, encoder, { type: "progress", label: "📝 리포트 정리 중..." });
+        emit({ type: "progress", label: "📝 리포트 정리 중..." });
 
         const textBlock = finalMessage.content.find((b) => b.type === "text");
         if (!textBlock || textBlock.type !== "text") {
-          sendLine(controller, encoder, { type: "error", message: "리포트 생성에 실패했습니다. 다시 시도해주세요." });
-          return;
+          return { type: "error", message: "리포트 생성에 실패했습니다. 다시 시도해주세요." };
         }
 
-        const data = JSON.parse(textBlock.text) as {
-          marketInsight?: unknown[];
-          buyers?: unknown[];
-        };
+        const data = JSON.parse(textBlock.text) as AnalysisResult;
 
         if ((data.marketInsight?.length ?? 0) === 0 && (data.buyers?.length ?? 0) === 0) {
           console.error("[/api/analyze] empty result", finalMessage.stop_reason, finalMessage.usage);
-          sendLine(controller, encoder, {
+          return {
             type: "error",
             message: "이번 조사에서 충분한 정보를 찾지 못했습니다. 키워드를 조금 더 구체적으로 입력해 다시 시도해주세요.",
-          });
-          return;
+          };
         }
 
-        sendLine(controller, encoder, { type: "result", data });
+        return { type: "result", data };
       } catch (err) {
         console.error("[/api/analyze]", timedOut ? "timed out" : "", err);
-        sendLine(controller, encoder, {
+        return {
           type: "error",
           message: timedOut
             ? "리포트 생성 시간이 너무 오래 걸려 중단됐습니다. 키워드를 조금 더 간단히 해서 다시 시도해주세요."
             : "리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-        });
+        };
       } finally {
         clearTimeout(deadline);
-        controller.close();
       }
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "application/x-ndjson; charset=utf-8",
-      "Cache-Control": "no-cache",
-    },
-  });
+  }
 }
