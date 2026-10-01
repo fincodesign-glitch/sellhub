@@ -1,12 +1,6 @@
 import Link from "next/link";
+import AccountNavLink from "./AccountNavLink";
 import styles from "./DarkSite.module.css";
-
-const NAV_ITEMS = [
-  { label: "브랜드", href: "/brand" },
-  { label: "요금제", href: "/pricing" },
-  { label: "로그인", href: "/login" },
-  { label: "Searching Hub", href: "https://searchinghub.vercel.app" },
-];
 
 export default function DarkSiteHeader() {
   return (
@@ -15,17 +9,16 @@ export default function DarkSiteHeader() {
         SellHub<span className={styles.logoSuffix}>.ai</span>
       </Link>
       <nav className={styles.nav} aria-label="Primary">
-        {NAV_ITEMS.map((item) =>
-          item.href.startsWith("http") ? (
-            <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" className={styles.pill}>
-              {item.label}
-            </a>
-          ) : (
-            <Link key={item.label} href={item.href} className={styles.pill}>
-              {item.label}
-            </Link>
-          ),
-        )}
+        <Link href="/brand" className={styles.pill}>
+          브랜드
+        </Link>
+        <Link href="/pricing" className={styles.pill}>
+          요금제
+        </Link>
+        <AccountNavLink className={styles.pill} />
+        <a href="https://searchinghub.vercel.app" target="_blank" rel="noopener noreferrer" className={styles.pill}>
+          Searching Hub
+        </a>
       </nav>
       <Link href="/profile" className={styles.btn}>
         무료로 시작

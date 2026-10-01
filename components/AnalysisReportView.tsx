@@ -75,9 +75,10 @@ export default function AnalysisReportView({
                 key={i}
                 className="flex flex-col gap-1.5 rounded-[12px] border border-white/10 bg-white/[0.03] px-4 py-3 sm:flex-row sm:items-start sm:gap-4"
               >
-                <div className="flex shrink-0 items-center gap-2 sm:w-40">
+                <div className="flex min-w-0 shrink-0 items-start gap-2 sm:w-52">
                   <RelevanceBadge relevance={trend.relevance} />
-                  <span className="text-[14px] font-bold text-white">{trend.keyword}</span>
+                  {/* Japanese keywords have no spaces; let them break anywhere instead of overflowing. */}
+                  <span className="min-w-0 text-[14px] font-bold text-white [overflow-wrap:anywhere]">{trend.keyword}</span>
                 </div>
                 <p className="text-[13.5px] leading-[1.6] text-[#b4b4b4]">{trend.evidence}</p>
               </div>
