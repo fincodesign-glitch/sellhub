@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
 import styles from "./page.module.css";
 
 /**
@@ -26,7 +25,7 @@ const NAV_ITEMS = [
   { label: "브랜드", href: "/brand", cls: styles.appearScale, d: "0.16s" },
   { label: "요금제", href: "/pricing", cls: styles.appearSoft, d: "0.28s" },
   { label: "로그인", href: "/login", cls: styles.appearScale, d: "0.40s" },
-  { label: "Searching Hub", href: "/intentmate", cls: styles.appearSoft, d: "0.52s" },
+  { label: "Searching Hub", href: "https://searchinghub.vercel.app", cls: styles.appearSoft, d: "0.52s" },
 ];
 
 const STATS = [
@@ -158,7 +157,6 @@ function StatIconMatch() {
 export default function Home() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const { account } = useAuth();
   const [videoIn, setVideoIn] = useState(false);
 
   // appear -> animationend -> is-in, plus a rAF fallback so nothing stays hidden if animations never run.
@@ -267,20 +265,19 @@ export default function Home() {
           </a>
 
           <nav id="site-nav" aria-label="Primary" className={styles.nav}>
-            {NAV_ITEMS.map((item) => {
-              const isLogin = item.href === "/login";
-              return (
-                <Link
-                  key={item.label}
-                  href={isLogin && account ? "/mypage" : item.href}
-                  onClick={() => setMenuOpen(false)}
-                  className={`${styles.pill} ${styles.appear} ${item.cls}`}
-                  style={{ ["--d" as string]: item.d }}
-                >
-                  {isLogin && account ? "마이페이지" : item.label}
-                </Link>
-              );
-            })}
+            {NAV_ITEMS.map((item) => (
+              <a
+                key={item.label}
+                href={item.href}
+                target={item.href.startsWith("http") ? "_blank" : undefined}
+                rel={item.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                onClick={() => setMenuOpen(false)}
+                className={`${styles.pill} ${styles.appear} ${item.cls}`}
+                style={{ ["--d" as string]: item.d }}
+              >
+                {item.label}
+              </a>
+            ))}
           </nav>
 
           <div style={{ justifySelf: "end", display: "flex", alignItems: "center", gap: 10 }}>

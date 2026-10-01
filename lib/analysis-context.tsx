@@ -1,23 +1,16 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import type { AnalysisResult, IntentAnalysisResult, ReportMeta } from "@/lib/analysis-types";
+import type { AnalysisResult, ReportMeta } from "@/lib/analysis-types";
 import { warmPdfFonts } from "@/lib/pdf-worker-client";
 
-// Holds the SellHub and Searching Hub analyses above the pages (in the root
-// layout), so an analysis keeps running and its result stays put while the user
-// moves between pages. A copy is kept in localStorage so a refresh or a full
-// page load can reconnect to the server-side job, and a finished result is shown
-// again for RESULT_TTL_MS after it completed. Each tool has its own store.
+// Holds the SellHub buyer analysis above the pages (in the root layout), so an
+// analysis keeps running and its result stays put while the user moves between
+// pages. A copy is kept in localStorage so a refresh or a full page load can
+// reconnect to the server-side job, and a finished result is shown again for
+// RESULT_TTL_MS after it completed.
 
-export type AnalysisTool = "sellhub" | "intent";
 export type AnalysisStatus = "idle" | "running" | "done" | "error";
-type AnyResult = AnalysisResult | IntentAnalysisResult;
-
-const TOOLS: Record<AnalysisTool, { endpoint: string; storageKey: string }> = {
-  sellhub: { endpoint: "/api/analyze", storageKey: "sellhub.analysis.v1" },
-  intent: { endpoint: "/api/intent-analyze", storageKey: "searchinghub.analysis.v1" },
-};
 
 export interface AnalysisPayload {
   mode: ReportMeta["mode"];
@@ -29,10 +22,10 @@ export interface AnalysisPayload {
   imageMediaType?: string;
 }
 
-interface AnalysisState<R> {
+interface AnalysisState {
   status: AnalysisStatus;
   progressLog: string[];
-  result: R | null;
+  result: AnalysisResult | null;
   meta: ReportMeta | null;
   error: string | null;
   /** Set when a signed-in account's result was saved to My Page. */
@@ -47,24 +40,25 @@ interface Persisted {
   completedAt?: number;
   meta: ReportMeta;
   progressLog: string[];
-  result?: AnyResult;
+  result?: AnalysisResult;
   savedReportId?: string | null;
 }
 
 type StreamEvent =
   | { type: "job"; jobId: string }
   | { type: "progress"; label: string }
-  | { type: "result"; data: AnyResult }
+  | { type: "result"; data: AnalysisResult }
   | { type: "error"; message: string }
   | { type: "saved"; reportId: string };
 
+const STORAGE_KEY = "sellhub.analysis.v1";
 export const RESULT_TTL_MS = 3 * 60 * 1000;
 // The server stops a job at 280s (route maxDuration 300s); past this a job that
 // never reported back is treated as lost.
 const MAX_RUN_MS = 6 * 60 * 1000;
 const POLL_MS = 4000;
 
-const IDLE: AnalysisState<AnyResult> = {
+const IDLE: AnalysisState = {
   status: "idle",
   progressLog: [],
   result: null,
@@ -74,73 +68,67 @@ const IDLE: AnalysisState<AnyResult> = {
   completedAt: null,
 };
 
-function readStored(key: string): Persisted | null {
+function readStored(): Persisted | null {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as Persisted) : null;
   } catch {
     return null;
   }
 }
 
-function writeStored(key: string, value: Persisted | null) {
+function writeStored(value: Persisted | null) {
   try {
-    if (value) localStorage.setItem(key, JSON.stringify(value));
-    else localStorage.removeItem(key);
+    if (value) localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    else localStorage.removeItem(STORAGE_KEY);
   } catch {
     // Storage unavailable (private mode etc.) — in-app navigation still works.
   }
 }
 
-type AnalysisContextValue<R> = AnalysisState<R> & {
+type AnalysisContextValue = AnalysisState & {
   startAnalysis: (payload: AnalysisPayload, meta: ReportMeta) => void;
   reset: () => void;
   /** Clears a finished result once it is older than RESULT_TTL_MS. */
   expireStaleResult: () => void;
 };
 
-const contexts = {
-  sellhub: createContext<AnalysisContextValue<AnyResult> | null>(null),
-  intent: createContext<AnalysisContextValue<AnyResult> | null>(null),
-};
+const AnalysisContext = createContext<AnalysisContextValue | null>(null);
 
-export function AnalysisProvider({ tool, children }: { tool: AnalysisTool; children: React.ReactNode }) {
-  const { endpoint, storageKey } = TOOLS[tool];
-  const Context = contexts[tool];
-  const [state, setState] = useState<AnalysisState<AnyResult>>(IDLE);
+export function AnalysisProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<AnalysisState>(IDLE);
   const runIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
   const finish = useCallback(
-    (runId: number, outcome: { result: AnyResult; savedReportId?: string } | { error: string }) => {
-      if (runIdRef.current !== runId) return;
-      const completedAt = Date.now();
-      const stored = readStored(storageKey);
-      if ("result" in outcome) {
-        const savedReportId = outcome.savedReportId;
-        setState((s) => ({
-          ...s,
+    (runId: number, outcome: { result: AnalysisResult; savedReportId?: string } | { error: string }) => {
+    if (runIdRef.current !== runId) return;
+    const completedAt = Date.now();
+    const stored = readStored();
+    if ("result" in outcome) {
+      const savedReportId = outcome.savedReportId;
+      setState((s) => ({
+        ...s,
+        status: "done",
+        result: outcome.result,
+        error: null,
+        completedAt,
+        savedReportId: savedReportId ?? s.savedReportId,
+      }));
+      if (stored)
+        writeStored({
+          ...stored,
           status: "done",
-          result: outcome.result,
-          error: null,
           completedAt,
-          savedReportId: savedReportId ?? s.savedReportId,
-        }));
-        if (stored) {
-          writeStored(storageKey, {
-            ...stored,
-            status: "done",
-            completedAt,
-            result: outcome.result,
-            savedReportId: savedReportId ?? stored.savedReportId,
-          });
-        }
-      } else {
-        setState((s) => ({ ...s, status: "error", error: outcome.error, completedAt }));
-        writeStored(storageKey, null);
-      }
+          result: outcome.result,
+          savedReportId: savedReportId ?? stored.savedReportId,
+        });
+    } else {
+      setState((s) => ({ ...s, status: "error", error: outcome.error, completedAt }));
+      writeStored(null);
+    }
     },
-    [storageKey],
+    [],
   );
 
   const pollJob = useCallback(
@@ -154,7 +142,7 @@ export function AnalysisProvider({ tool, children }: { tool: AnalysisTool; child
           const res = await fetch(`/api/analyze/jobs/${jobId}`, { cache: "no-store" });
           const data = (await res.json()) as
             | { status: "pending" }
-            | { status: "done"; result: AnyResult; reportId?: string }
+            | { status: "done"; result: AnalysisResult; reportId?: string }
             | { status: "error"; message: string };
           if (data.status === "done") return finish(runId, { result: data.result, savedReportId: data.reportId });
           if (data.status === "error") return finish(runId, { error: data.message });
@@ -169,7 +157,7 @@ export function AnalysisProvider({ tool, children }: { tool: AnalysisTool; child
 
   // Restore after a refresh or a full page load.
   useEffect(() => {
-    const stored = readStored(storageKey);
+    const stored = readStored();
     if (!stored) return;
     const now = Date.now();
     if (stored.status === "done" && stored.result && stored.completedAt && now - stored.completedAt < RESULT_TTL_MS) {
@@ -195,8 +183,8 @@ export function AnalysisProvider({ tool, children }: { tool: AnalysisTool; child
       void pollJob(runId, stored.jobId, stored.startedAt);
       return;
     }
-    writeStored(storageKey, null);
-  }, [pollJob, storageKey]);
+    writeStored(null);
+  }, [pollJob]);
 
   const startAnalysis = useCallback(
     (payload: AnalysisPayload, meta: ReportMeta) => {
@@ -206,16 +194,16 @@ export function AnalysisProvider({ tool, children }: { tool: AnalysisTool; child
       const runId = ++runIdRef.current;
       const startedAt = Date.now();
       let persisted: Persisted = { jobId: null, status: "running", startedAt, meta, progressLog: [] };
-      writeStored(storageKey, persisted);
+      writeStored(persisted);
       setState({ ...IDLE, status: "running", meta });
-      // Parse the CJK fonts in the PDF worker during the analysis, so the
-      // download click later doesn't have to.
+      // Parse the CJK fonts in the PDF worker during the multi-minute analysis,
+      // so the download click later doesn't have to.
       warmPdfFonts();
 
       void (async () => {
         let sawFinal = false;
         try {
-          const res = await fetch(endpoint, {
+          const res = await fetch("/api/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -244,10 +232,10 @@ export function AnalysisProvider({ tool, children }: { tool: AnalysisTool; child
               }
               if (event.type === "job") {
                 persisted = { ...persisted, jobId: event.jobId };
-                writeStored(storageKey, persisted);
+                writeStored(persisted);
               } else if (event.type === "progress") {
                 persisted = { ...persisted, progressLog: [...persisted.progressLog.slice(-4), event.label] };
-                writeStored(storageKey, persisted);
+                writeStored(persisted);
                 setState((s) => ({ ...s, progressLog: persisted.progressLog }));
               } else if (event.type === "result") {
                 sawFinal = true;
@@ -257,8 +245,8 @@ export function AnalysisProvider({ tool, children }: { tool: AnalysisTool; child
                 finish(runId, { error: event.message });
               } else if (event.type === "saved") {
                 setState((s) => ({ ...s, savedReportId: event.reportId }));
-                const stored = readStored(storageKey);
-                if (stored) writeStored(storageKey, { ...stored, savedReportId: event.reportId });
+                const stored = readStored();
+                if (stored) writeStored({ ...stored, savedReportId: event.reportId });
               }
             }
           }
@@ -273,36 +261,35 @@ export function AnalysisProvider({ tool, children }: { tool: AnalysisTool; child
         }
       })();
     },
-    [endpoint, finish, pollJob, storageKey],
+    [finish, pollJob],
   );
 
   const reset = useCallback(() => {
     runIdRef.current++;
     abortRef.current?.abort();
-    writeStored(storageKey, null);
+    writeStored(null);
     setState(IDLE);
-  }, [storageKey]);
+  }, []);
 
   const expireStaleResult = useCallback(() => {
     setState((s) => {
       if (s.status === "done" && s.completedAt && Date.now() - s.completedAt >= RESULT_TTL_MS) {
-        writeStored(storageKey, null);
+        writeStored(null);
         return IDLE;
       }
       return s;
     });
-  }, [storageKey]);
+  }, []);
 
-  return <Context.Provider value={{ ...state, startAnalysis, reset, expireStaleResult }}>{children}</Context.Provider>;
+  return (
+    <AnalysisContext.Provider value={{ ...state, startAnalysis, reset, expireStaleResult }}>
+      {children}
+    </AnalysisContext.Provider>
+  );
 }
 
-function useToolAnalysis<R extends AnyResult>(tool: AnalysisTool) {
-  const ctx = useContext(contexts[tool]);
-  if (!ctx) throw new Error(`analysis store "${tool}" is missing — wrap the app in <AnalysisProvider tool="${tool}">`);
-  return ctx as AnalysisContextValue<R>;
+export function useAnalysis() {
+  const ctx = useContext(AnalysisContext);
+  if (!ctx) throw new Error("useAnalysis must be used inside AnalysisProvider");
+  return ctx;
 }
-
-/** SellHub buyer analysis (/profile). */
-export const useAnalysis = () => useToolAnalysis<AnalysisResult>("sellhub");
-/** Searching Hub market research (/intent). */
-export const useIntentAnalysis = () => useToolAnalysis<IntentAnalysisResult>("intent");

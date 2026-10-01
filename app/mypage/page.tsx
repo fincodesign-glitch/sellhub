@@ -7,35 +7,17 @@ import DarkSiteFooter from "@/components/DarkSiteFooter";
 import DarkSiteHeader from "@/components/DarkSiteHeader";
 import styles from "@/components/DarkSite.module.css";
 import { useAuth } from "@/lib/auth-context";
-import type { AnalysisResult, IntentAnalysisResult, ReportMeta } from "@/lib/analysis-types";
+import type { AnalysisResult, ReportMeta } from "@/lib/analysis-types";
 
 interface ReportSummary {
   id: string;
-  tool: "sellhub" | "intent";
   createdAt: string;
   meta: ReportMeta;
   buyerCount: number;
 }
 
 interface FullReport extends ReportSummary {
-  result: AnalysisResult | IntentAnalysisResult;
-}
-
-const TOOL_LABEL = { sellhub: "SellHub · 바이어 & 제안 메일", intent: "Searching Hub · 시장 조사" } as const;
-
-function ToolTag({ tool }: { tool: ReportSummary["tool"] }) {
-  return (
-    <span
-      className="mr-2 inline-block rounded-full px-2 py-0.5 align-middle text-[11px] font-bold"
-      style={
-        tool === "intent"
-          ? { background: "rgba(124,92,255,0.18)", color: "#a993ff" }
-          : { background: "rgba(91,156,255,0.15)", color: "#5b9cff" }
-      }
-    >
-      {tool === "intent" ? "Searching Hub" : "SellHub"}
-    </span>
-  );
+  result: AnalysisResult;
 }
 
 const MODE_LABEL: Record<ReportMeta["mode"], string> = { text: "텍스트", url: "URL", image: "이미지" };
@@ -73,8 +55,7 @@ export default function MyPage() {
       const res = await fetch(`/api/reports/${id}`, { cache: "no-store" });
       const data = (await res.json().catch(() => ({}))) as { report?: FullReport; error?: string };
       if (!res.ok || !data.report) throw new Error(data.error ?? "리포트를 불러오지 못했습니다.");
-      // Reports saved before Searching Hub reports existed have no tool — they are SellHub.
-      setOpen({ ...data.report, tool: data.report.tool ?? "sellhub" });
+      setOpen(data.report);
       window.scrollTo({ top: 0 });
     } catch (err) {
       setOpenError((err as Error).message);
@@ -118,15 +99,9 @@ export default function MyPage() {
             </button>
             <h1 className="mb-1 text-[clamp(22px,3vw,30px)] font-black leading-[1.2] text-white">{reportTitle(open.meta)}</h1>
             <p className="mb-8 text-[13.5px] text-[#9a9a9a]">
-              <ToolTag tool={open.tool} />
               {formatDate(open.createdAt)} · {open.meta.market} · {MODE_LABEL[open.meta.mode]} 분석
             </p>
-            <AnalysisReportView
-              tool={open.tool}
-              result={open.result}
-              meta={open.meta}
-              headline={`저장된 분석 결과 · ${TOOL_LABEL[open.tool]}`}
-            />
+            <AnalysisReportView result={open.result} meta={open.meta} headline="저장된 분석 결과" />
           </div>
         ) : (
           <div>
@@ -181,7 +156,6 @@ export default function MyPage() {
                       <div className="min-w-0">
                         <p className="truncate text-[15.5px] font-bold text-white">{reportTitle(r.meta)}</p>
                         <p className="mt-1 text-[12.5px] text-[#9a9a9a]">
-                          <ToolTag tool={r.tool} />
                           {formatDate(r.createdAt)} · {r.meta.market} · {MODE_LABEL[r.meta.mode]} 분석 · 바이어 {r.buyerCount}곳
                         </p>
                       </div>

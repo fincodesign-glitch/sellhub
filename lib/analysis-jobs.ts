@@ -1,31 +1,24 @@
 import { randomBytes } from "crypto";
 import { get, list, put } from "@vercel/blob";
-import type { AnalysisResult, IntentAnalysisResult, ReportMeta } from "@/lib/analysis-types";
-
-/** Which service produced a report: SellHub (buyers + emails) or Searching Hub (market research). */
-export type ReportTool = "sellhub" | "intent";
-export type AnyAnalysisResult = AnalysisResult | IntentAnalysisResult;
+import type { AnalysisResult, ReportMeta } from "@/lib/analysis-types";
 
 // Server-only: analysis job outcomes (so a browser that refreshed or navigated
 // away mid-analysis can pick the result up) and saved reports for signed-in
 // accounts (My Page). Both are private JSON files in Vercel Blob.
 
 export type JobOutcome =
-  | { status: "done"; completedAt: string; result: AnyAnalysisResult; reportId?: string }
+  | { status: "done"; completedAt: string; result: AnalysisResult; reportId?: string }
   | { status: "error"; completedAt: string; message: string };
 
 export interface SavedReport {
   id: string;
-  /** Missing on reports saved before Searching Hub reports existed — those are SellHub. */
-  tool?: ReportTool;
   createdAt: string;
   meta: ReportMeta;
-  result: AnyAnalysisResult;
+  result: AnalysisResult;
 }
 
 export interface SavedReportSummary {
   id: string;
-  tool: ReportTool;
   createdAt: string;
   meta: ReportMeta;
   buyerCount: number;
@@ -78,11 +71,5 @@ export async function listReports(userId: string, limit = 30): Promise<SavedRepo
   const reports = await Promise.all(newest.map((b) => readJson<SavedReport>(b.pathname).catch(() => null)));
   return reports
     .filter((r): r is SavedReport => r !== null)
-    .map((r) => ({
-      id: r.id,
-      tool: r.tool ?? "sellhub",
-      createdAt: r.createdAt,
-      meta: r.meta,
-      buyerCount: r.result.buyers.length,
-    }));
+    .map((r) => ({ id: r.id, createdAt: r.createdAt, meta: r.meta, buyerCount: r.result.buyers.length }));
 }
